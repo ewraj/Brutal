@@ -1,0 +1,3 @@
+#!/bin/bash
+# Launcher for brutal.py — uses the project venv automatically.
+exec /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 "$(dirname "$0")/brutalv0.1.py" "$@"
