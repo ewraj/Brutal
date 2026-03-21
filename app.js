@@ -16,7 +16,8 @@ Output format:
 - THE OPTIMAL FIX: The definitive, high-performance solution.`;
 
 const STATE = {
-    messages: [{ role: 'system', content: BRUTAL_PERSONA }],
+    chats: {},
+    currentChatId: null,
     isThinking: false
 };
 
@@ -28,7 +29,11 @@ const el = {
     statusPill: document.getElementById('status-pill'),
     statusText: document.getElementById('status-text'),
     loginOverlay: document.getElementById('login-overlay'),
-    loginBtn: document.getElementById('login-btn')
+    loginBtn: document.getElementById('login-btn'),
+    sidebar: document.getElementById('sidebar'),
+    chatList: document.getElementById('chat-list'),
+    newChatBtn: document.getElementById('new-chat-btn'),
+    chatWrapper: document.getElementById('chat-wrapper')
 };
 
 // --- Initialization ---
@@ -57,7 +62,97 @@ function onReady() {
     el.statusPill.classList.add('online');
     el.statusText.innerText = "Connected to Gemini";
     el.sendBtn.disabled = false;
+    loadChats();
     el.input.focus();
+}
+
+// --- Chat History Logic ---
+function loadChats() {
+    const saved = localStorage.getItem('brutal_chats');
+    if (saved) {
+        try {
+            STATE.chats = JSON.parse(saved);
+            // Cleanup empty chats on initialization
+            for (const id in STATE.chats) {
+                if (STATE.chats[id].messages.length <= 1) {
+                    delete STATE.chats[id];
+                }
+            }
+        } catch (e) {
+            console.error("Failed to parse chats", e);
+            STATE.chats = {};
+        }
+    }
+    
+    // Always start a new chat on page load, just like ChatGPT.
+    // The historical chats are already loaded into STATE and will be
+    // rendered in the sidebar by the startNewChat function.
+    startNewChat();
+}
+
+function saveChats() {
+    localStorage.setItem('brutal_chats', JSON.stringify(STATE.chats));
+}
+
+function startNewChat() {
+    // Prevent creating multiple stacked empty chats
+    if (STATE.currentChatId && STATE.chats[STATE.currentChatId]?.messages.length <= 1) {
+        return;
+    }
+
+    const id = Date.now().toString();
+    STATE.currentChatId = id;
+    STATE.chats[id] = {
+        id: id,
+        title: 'New Chat',
+        messages: [{ role: 'system', content: BRUTAL_PERSONA }]
+    };
+    saveChats();
+    renderSidebar();
+    renderCurrentChat();
+}
+
+function switchChat(id) {
+    if (STATE.isThinking || STATE.currentChatId === id) return;
+    
+    // Cleanup empty chats when navigating away to keep the sidebar clean
+    if (STATE.currentChatId && STATE.chats[STATE.currentChatId]?.messages.length <= 1) {
+        delete STATE.chats[STATE.currentChatId];
+        saveChats();
+    }
+
+    STATE.currentChatId = id;
+    renderSidebar();
+    renderCurrentChat();
+}
+
+function renderSidebar() {
+    el.chatList.innerHTML = '';
+    const sortedChats = Object.values(STATE.chats).sort((a, b) => b.id - a.id);
+    for (const chat of sortedChats) {
+        const div = document.createElement('div');
+        div.className = `chat-item ${chat.id === STATE.currentChatId ? 'active' : ''}`;
+        div.innerText = chat.title;
+        div.onclick = () => switchChat(chat.id);
+        el.chatList.appendChild(div);
+    }
+}
+
+function renderCurrentChat() {
+    el.messages.innerHTML = `<div class="system-notice"><p>System Initialized. No sycophancy. No filler. Just optimization.</p></div>`;
+    const chat = STATE.chats[STATE.currentChatId];
+
+    // If the chat is new (only has a system prompt), apply the centered layout.
+    if (chat.messages.length <= 1) {
+        el.chatWrapper.classList.add('initial-state');
+    } else {
+        el.chatWrapper.classList.remove('initial-state');
+    }
+
+    chat.messages.forEach(m => {
+        if (m.role !== 'system') addMessage(m.role, m.content);
+    });
+    scrollToBottom();
 }
 
 // --- Chat Logic ---
@@ -65,12 +160,27 @@ async function sendMessage() {
     const text = el.input.value.trim();
     if (!text || STATE.isThinking) return;
 
+    const chat = STATE.chats[STATE.currentChatId];
+
+    // On the first message send, remove the centered layout to trigger the animation.
+    if (chat.messages.length === 1) {
+        el.chatWrapper.classList.remove('initial-state');
+    }
+
     // UI Update: User Message
     addMessage('user', text);
     el.input.value = '';
     adjustTextareaHeight();
     
-    STATE.messages.push({ role: 'user', content: text });
+    chat.messages.push({ role: 'user', content: text });
+    
+    // Auto-generate title for first user message
+    if (chat.messages.length === 2) {
+        chat.title = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+        renderSidebar();
+    }
+    saveChats();
+
     STATE.isThinking = true;
     el.sendBtn.disabled = true;
     el.statusPill.classList.add('loading');
@@ -80,7 +190,7 @@ async function sendMessage() {
     const contentEl = brutalMsgEl.querySelector('.content');
 
     try {
-        const stream = await puter.ai.chat(STATE.messages, { 
+        const stream = await puter.ai.chat(chat.messages, { 
             model: 'gemini-2.0-flash', 
             stream: true 
         });
@@ -93,14 +203,17 @@ async function sendMessage() {
                 fullReply += part.text;
                 // Render markdown on the fly
                 contentEl.innerHTML = marked.parse(fullReply);
-                // Highlight any code blocks
-                contentEl.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
-                });
                 scrollToBottom();
             }
         }
-        STATE.messages.push({ role: 'assistant', content: fullReply });
+        
+        // Highlight code blocks once after the stream finishes to prevent extreme UI lag
+        contentEl.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+
+        chat.messages.push({ role: 'assistant', content: fullReply });
+        saveChats();
     } catch (err) {
         contentEl.innerHTML = `<span style="color:var(--brutal-red)">[ERROR: ${err.message}]</span>`;
     } finally {
@@ -117,8 +230,17 @@ function addMessage(role, text) {
     div.className = `message ${role}`;
     div.innerHTML = `
         <span class="label">${role === 'user' ? 'YOU' : 'BRUTAL'}</span>
-        <div class="content">${role === 'user' ? text : marked.parse(text)}</div>
+        <div class="content"></div>
     `;
+    
+    // Safely inject text to prevent user-driven XSS
+    const contentDiv = div.querySelector('.content');
+    if (role === 'user') {
+        contentDiv.textContent = text;
+    } else {
+        contentDiv.innerHTML = marked.parse(text);
+    }
+    
     el.messages.appendChild(div);
     
     if (role === 'brutal') {
@@ -159,6 +281,13 @@ el.loginBtn.addEventListener('click', async () => {
         onReady();
     } catch (err) {
         alert("Login failed. Please try again.");
+    }
+});
+
+el.newChatBtn.addEventListener('click', () => {
+    if (!STATE.isThinking) {
+        startNewChat();
+        el.input.focus();
     }
 });
 

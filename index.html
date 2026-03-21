@@ -19,6 +19,12 @@
 </head>
 <body class="dark-theme">
     <div id="app">
+        <aside id="sidebar">
+            <button id="new-chat-btn">+ New Chat</button>
+            <div id="chat-list"></div>
+        </aside>
+
+        <div id="main-content">
         <header>
             <div class="logo">
                 <span class="brutal-text">BRUTAL</span>
@@ -30,23 +36,26 @@
             </div>
         </header>
 
-        <main id="chat-container">
-            <div id="messages">
-                <!-- Messages will appear here -->
-                <div class="system-notice">
-                    <p>System Initialized. No sycophancy. No filler. Just optimization.</p>
+        <div id="chat-wrapper">
+            <main id="chat-container">
+                <div id="messages">
+                    <!-- Messages will appear here -->
+                    <div class="system-notice">
+                        <p>System Initialized. No sycophancy. No filler. Just optimization.</p>
+                    </div>
                 </div>
-            </div>
-        </main>
+            </main>
 
-        <footer>
-            <div class="input-wrapper">
-                <textarea id="user-input" placeholder="Pitch your project or ask a technical question..." rows="1"></textarea>
-                <button id="send-btn" disabled>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                </button>
-            </div>
-        </footer>
+            <footer>
+                <div class="input-wrapper">
+                    <textarea id="user-input" placeholder="Pitch your project or ask a technical question..." rows="1"></textarea>
+                    <button id="send-btn" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </footer>
+        </div>
+        </div>
 
         <!-- Login Overlay -->
         <div id="login-overlay" class="hidden">
