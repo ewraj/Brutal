@@ -54,7 +54,7 @@ except ImportError:
 
 # ─── PERSONA / SYSTEM PROMPT ──────────────────────────────────────────────────
 def load_system_prompt() -> str:
-    persona_path = Path(__file__).parent / "ReadmeA.md"
+    persona_path = Path(__file__).parent / "persona"
     if not persona_path.exists():
         sys.exit(f"ERROR: Persona file not found at '{persona_path}'.")
     with open(persona_path) as f:
