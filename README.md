@@ -19,6 +19,10 @@ or enter interactive mode:
 ### 2. Web Application (`index.html`)
 A premium, dark-mode web interface for the Brutal AI, featuring real-time markdown rendering and persistent sessions.
 
+#### Running the Web App:
+- **Directly**: Open `index.html` in any modern web browser.
+- **Local Server (Recommended)**: Run `python3 -m http.server` in the project directory and visit `http://localhost:8000`.
+
 ## Project Structure
 - `brutalv0.4.py`: Latest CLI version.
 - `brutal`: Launcher script.
