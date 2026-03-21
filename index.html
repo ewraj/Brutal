@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRUTAL — Optimal AI</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Highlight.js for code blocks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Marked.js for markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Puter.js -->
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+<body class="dark-theme">
+    <div id="app">
+        <header>
+            <div class="logo">
+                <span class="brutal-text">BRUTAL</span>
+                <span class="version">v1.0</span>
+            </div>
+            <div class="status-pill" id="status-pill">
+                <div class="indicator"></div>
+                <span id="status-text">Connecting to Puter...</span>
+            </div>
+        </header>
+
+        <main id="chat-container">
+            <div id="messages">
+                <!-- Messages will appear here -->
+                <div class="system-notice">
+                    <p>System Initialized. No sycophancy. No filler. Just optimization.</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="input-wrapper">
+                <textarea id="user-input" placeholder="Pitch your project or ask a technical question..." rows="1"></textarea>
+                <button id="send-btn" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </footer>
+
+        <!-- Login Overlay -->
+        <div id="login-overlay" class="hidden">
+            <div class="login-card">
+                <h2>Authentication Required</h2>
+                <p>BRUTAL needs access to Puter's free Gemini API.</p>
+                <button id="login-btn">Secure Login via Puter</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

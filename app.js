@@ -1,0 +1,166 @@
+// BRUTAL Web App Core Logic
+const BRUTAL_PERSONA = `You are BRUTAL, a hyper-competent and ruthlessly efficient technical advisor. 
+Your core mission is to optimize code, architecture, and logic with radical candor. 
+
+OPERATIONAL DIRECTIVES:
+1. NO FILLER: Skip all greetings, affirmations, and pleasantries. 
+2. RADICAL CANDOR: If an idea is flawed, say so immediately and directly. Do not sugarcoat technical failures.
+3. OBJECTIVE CRITIQUE: Target your criticism at the WORK, not the person. Use sharp, blunt language for technical errors (e.g., "This memory management is a disaster," "This logic is fundamentally broken").
+4. OPTIMAL SOLUTIONS ONLY: Tearing down a problem is only half your job. You must ALWAYS provide the most efficient, production-ready, and scientifically correct solution.
+5. NO SYCOPHANCY: Never use empty praise like "good attempt." If it's not optimal, it's not finished.
+
+Your goal is to be the ultimate filter for mediocre ideas, ensuring only the most robust and efficient technical designs survive. 
+Output format:
+- THE CRITIQUE: Direct identification of the flaw or inefficiency.
+- THE BREAKDOWN: Precise technical explanation of the failure.
+- THE OPTIMAL FIX: The definitive, high-performance solution.`;
+
+const STATE = {
+    messages: [{ role: 'system', content: BRUTAL_PERSONA }],
+    isThinking: false
+};
+
+// UI Elements
+const el = {
+    messages: document.getElementById('messages'),
+    input: document.getElementById('user-input'),
+    sendBtn: document.getElementById('send-btn'),
+    statusPill: document.getElementById('status-pill'),
+    statusText: document.getElementById('status-text'),
+    loginOverlay: document.getElementById('login-overlay'),
+    loginBtn: document.getElementById('login-btn')
+};
+
+// --- Initialization ---
+async function init() {
+    try {
+        // Wait for Puter and its auth objects to be fully injected
+        for (let i = 0; i < 20; i++) {
+            if (window.puter && puter.auth) break;
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        if (!puter.auth.isSignedIn()) {
+            el.loginOverlay.classList.remove('hidden');
+            el.statusText.innerText = "Waiting for Login...";
+        } else {
+            onReady();
+        }
+    } catch (err) {
+        console.error("Initialization failed:", err);
+        el.statusText.innerText = "Connection Failed";
+    }
+}
+
+function onReady() {
+    el.loginOverlay.classList.add('hidden');
+    el.statusPill.classList.add('online');
+    el.statusText.innerText = "Connected to Gemini";
+    el.sendBtn.disabled = false;
+    el.input.focus();
+}
+
+// --- Chat Logic ---
+async function sendMessage() {
+    const text = el.input.value.trim();
+    if (!text || STATE.isThinking) return;
+
+    // UI Update: User Message
+    addMessage('user', text);
+    el.input.value = '';
+    adjustTextareaHeight();
+    
+    STATE.messages.push({ role: 'user', content: text });
+    STATE.isThinking = true;
+    el.sendBtn.disabled = true;
+    el.statusPill.classList.add('loading');
+
+    // UI Update: Brutal Placeholder
+    const brutalMsgEl = addMessage('brutal', '...');
+    const contentEl = brutalMsgEl.querySelector('.content');
+
+    try {
+        const stream = await puter.ai.chat(STATE.messages, { 
+            model: 'gemini-2.0-flash', 
+            stream: true 
+        });
+
+        let fullReply = "";
+        contentEl.innerHTML = ""; // clear dots
+
+        for await (const part of stream) {
+            if (part?.text) {
+                fullReply += part.text;
+                // Render markdown on the fly
+                contentEl.innerHTML = marked.parse(fullReply);
+                // Highlight any code blocks
+                contentEl.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+                scrollToBottom();
+            }
+        }
+        STATE.messages.push({ role: 'assistant', content: fullReply });
+    } catch (err) {
+        contentEl.innerHTML = `<span style="color:var(--brutal-red)">[ERROR: ${err.message}]</span>`;
+    } finally {
+        STATE.isThinking = false;
+        el.sendBtn.disabled = false;
+        el.statusPill.classList.remove('loading');
+        scrollToBottom();
+    }
+}
+
+// --- UI Helpers ---
+function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    div.innerHTML = `
+        <span class="label">${role === 'user' ? 'YOU' : 'BRUTAL'}</span>
+        <div class="content">${role === 'user' ? text : marked.parse(text)}</div>
+    `;
+    el.messages.appendChild(div);
+    
+    if (role === 'brutal') {
+        div.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+    }
+    
+    scrollToBottom();
+    return div;
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('chat-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+function adjustTextareaHeight() {
+    el.input.style.height = 'auto';
+    el.input.style.height = el.input.scrollHeight + 'px';
+}
+
+// --- Event Listeners ---
+el.input.addEventListener('input', adjustTextareaHeight);
+
+el.input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+el.sendBtn.addEventListener('click', sendMessage);
+
+el.loginBtn.addEventListener('click', async () => {
+    try {
+        await puter.auth.signIn();
+        onReady();
+    } catch (err) {
+        alert("Login failed. Please try again.");
+    }
+});
+
+// Start app
+init();
