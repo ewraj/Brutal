@@ -32,7 +32,8 @@ const el = {
     loginBtn: document.getElementById('login-btn'),
     sidebar: document.getElementById('sidebar'),
     chatList: document.getElementById('chat-list'),
-    newChatBtn: document.getElementById('new-chat-btn')
+    newChatBtn: document.getElementById('new-chat-btn'),
+    chatWrapper: document.getElementById('chat-wrapper')
 };
 
 // --- Initialization ---
@@ -83,14 +84,10 @@ function loadChats() {
         }
     }
     
-    const chatIds = Object.keys(STATE.chats);
-    if (chatIds.length > 0) {
-        const latestId = chatIds.sort((a, b) => b - a)[0];
-        switchChat(latestId);
-    } else {
-        renderSidebar();
-        startNewChat();
-    }
+    // Always start a new chat on page load, just like ChatGPT.
+    // The historical chats are already loaded into STATE and will be
+    // rendered in the sidebar by the startNewChat function.
+    startNewChat();
 }
 
 function saveChats() {
@@ -144,6 +141,14 @@ function renderSidebar() {
 function renderCurrentChat() {
     el.messages.innerHTML = `<div class="system-notice"><p>System Initialized. No sycophancy. No filler. Just optimization.</p></div>`;
     const chat = STATE.chats[STATE.currentChatId];
+
+    // If the chat is new (only has a system prompt), apply the centered layout.
+    if (chat.messages.length <= 1) {
+        el.chatWrapper.classList.add('initial-state');
+    } else {
+        el.chatWrapper.classList.remove('initial-state');
+    }
+
     chat.messages.forEach(m => {
         if (m.role !== 'system') addMessage(m.role, m.content);
     });
@@ -156,6 +161,11 @@ async function sendMessage() {
     if (!text || STATE.isThinking) return;
 
     const chat = STATE.chats[STATE.currentChatId];
+
+    // On the first message send, remove the centered layout to trigger the animation.
+    if (chat.messages.length === 1) {
+        el.chatWrapper.classList.remove('initial-state');
+    }
 
     // UI Update: User Message
     addMessage('user', text);

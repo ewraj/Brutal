@@ -97,6 +97,27 @@ body {
     min-width: 0;
 }
 
+/* This new wrapper controls the layout of the main chat area and the footer */
+#chat-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* Default state: footer is at the bottom */
+    min-height: 0; /* Critical for child flex containers with overflow */
+    position: relative;
+    transition: justify-content 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* In the initial state (new chat), center the content (the footer) */
+#chat-wrapper.initial-state {
+    justify-content: center;
+}
+
+/* The chat container should only grow and take up space once the chat has started */
+#chat-wrapper:not(.initial-state) #chat-container {
+    flex: 1;
+}
+
 /* Header */
 header {
     padding: 1.5rem 2rem;
@@ -157,7 +178,6 @@ header {
 
 /* Chat Area */
 #chat-container {
-    flex: 1;
     overflow-y: auto;
     padding: 2rem;
     scroll-behavior: smooth;
@@ -254,6 +274,12 @@ header {
 /* Footer / Input */
 footer {
     padding: 2rem;
+    background: transparent; /* Transparent by default for the centered state */
+    transition: background 0.6s ease;
+}
+
+/* Once the chat starts, fade in the gradient background */
+#chat-wrapper:not(.initial-state) footer {
     background: linear-gradient(to top, var(--bg-main), transparent);
 }
 
