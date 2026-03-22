@@ -296,8 +296,8 @@ footer {
 }
 
 .input-wrapper:focus-within {
-    border-color: var(--brutal-red);
-    box-shadow: 0 0 0 1px var(--brutal-red), 0 10px 40px rgba(230, 57, 70, 0.1);
+    border-color: var(--text-secondary);
+    box-shadow: 0 0 0 1px var(--text-secondary), 0 10px 40px rgba(0,0,0,0.5);
 }
 
 textarea {

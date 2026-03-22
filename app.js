@@ -15,7 +15,9 @@ Your goal is to be the ultimate filter for mediocre ideas, ensuring only the mos
 const STATE = {
     chats: {},
     currentChatId: null,
-    isThinking: false
+    isThinking: false,
+    recognition: null,
+    isListening: false
 };
 
 // UI Elements
@@ -29,13 +31,13 @@ const el = {
     sidebar: document.getElementById('sidebar'),
     chatList: document.getElementById('chat-list'),
     newChatBtn: document.getElementById('new-chat-btn'),
-    chatWrapper: document.getElementById('chat-wrapper')
+    chatWrapper: document.getElementById('chat-wrapper'),
+    micBtn: document.getElementById('mic-btn')
 };
 
 // --- Initialization ---
 async function init() {
     try {
-        // Wait for Puter and its auth objects to be fully injected
         for (let i = 0; i < 20; i++) {
             if (window.puter && puter.auth) break;
             await new Promise(r => setTimeout(r, 200));
@@ -62,10 +64,10 @@ function onReady() {
 // --- Chat History Logic ---
 function loadChats() {
     const saved = localStorage.getItem('brutal_chats');
+    const savedCurrentId = localStorage.getItem('brutal_current_chat_id');
     if (saved) {
         try {
             STATE.chats = JSON.parse(saved);
-            // Cleanup empty chats on initialization
             for (const id in STATE.chats) {
                 if (STATE.chats[id].messages.length <= 1) {
                     delete STATE.chats[id];
@@ -76,19 +78,24 @@ function loadChats() {
             STATE.chats = {};
         }
     }
-    
-    // Always start a new chat on page load, just like ChatGPT.
-    // The historical chats are already loaded into STATE and will be
-    // rendered in the sidebar by the startNewChat function.
-    startNewChat();
+
+    if (savedCurrentId && STATE.chats[savedCurrentId]) {
+        STATE.currentChatId = savedCurrentId;
+        renderSidebar();
+        renderCurrentChat();
+    } else {
+        startNewChat();
+    }
 }
 
 function saveChats() {
     localStorage.setItem('brutal_chats', JSON.stringify(STATE.chats));
+    if (STATE.currentChatId) {
+        localStorage.setItem('brutal_current_chat_id', STATE.currentChatId);
+    }
 }
 
 function startNewChat() {
-    // Prevent creating multiple stacked empty chats
     if (STATE.currentChatId && STATE.chats[STATE.currentChatId]?.messages.length <= 1) {
         return;
     }
@@ -107,14 +114,13 @@ function startNewChat() {
 
 function switchChat(id) {
     if (STATE.isThinking || STATE.currentChatId === id) return;
-    
-    // Cleanup empty chats when navigating away to keep the sidebar clean
+
     if (STATE.currentChatId && STATE.chats[STATE.currentChatId]?.messages.length <= 1) {
         delete STATE.chats[STATE.currentChatId];
-        saveChats();
     }
 
     STATE.currentChatId = id;
+    saveChats();
     renderSidebar();
     renderCurrentChat();
 }
@@ -135,7 +141,6 @@ function renderCurrentChat() {
     el.messages.innerHTML = `<div class="system-notice"><p>System Initialized. No sycophancy. No filler. Just optimization.</p></div>`;
     const chat = STATE.chats[STATE.currentChatId];
 
-    // If the chat is new (only has a system prompt), apply the centered layout.
     if (chat.messages.length <= 1) {
         el.chatWrapper.classList.add('initial-state');
     } else {
@@ -150,24 +155,28 @@ function renderCurrentChat() {
 
 // --- Chat Logic ---
 async function sendMessage() {
+    // Kill mic on send
+    if (STATE.isListening && STATE.recognition) {
+        STATE.recognition.stop();
+    }
+
     const text = el.input.value.trim();
     if (!text || STATE.isThinking) return;
 
+    // ✅ FIX 1: 'chat' was never declared — this caused a silent crash
+    // that prevented ANY of the sendMessage logic from running,
+    // which also broke the STT text appearing to "do nothing".
     const chat = STATE.chats[STATE.currentChatId];
+    if (!chat) return;
 
-    // On the first message send, remove the centered layout to trigger the animation.
-    if (chat.messages.length === 1) {
-        el.chatWrapper.classList.remove('initial-state');
-    }
-
-    // UI Update: User Message
     addMessage('user', text);
     el.input.value = '';
     adjustTextareaHeight();
-    
+
     chat.messages.push({ role: 'user', content: text });
-    
-    // Auto-generate title for first user message
+
+    el.chatWrapper.classList.remove('initial-state');
+
     if (chat.messages.length === 2) {
         chat.title = text.substring(0, 30) + (text.length > 30 ? '...' : '');
         renderSidebar();
@@ -178,29 +187,29 @@ async function sendMessage() {
     el.sendBtn.disabled = true;
     el.statusPill.classList.add('loading');
 
-    // UI Update: Brutal Placeholder
     const brutalMsgEl = addMessage('brutal', '...');
     const contentEl = brutalMsgEl.querySelector('.content');
 
     try {
-        const stream = await puter.ai.chat(chat.messages, { 
-            model: 'gemini-2.0-flash', 
-            stream: true 
+        // Pass a pristine copy of the messages to prevent SDK mutation issues
+        const payload = chat.messages.map(m => ({ role: m.role, content: m.content }));
+
+        const stream = await puter.ai.chat(payload, {
+            model: 'gemini-2.0-flash',
+            stream: true
         });
 
         let fullReply = "";
-        contentEl.innerHTML = ""; // clear dots
+        contentEl.innerHTML = "";
 
         for await (const part of stream) {
             if (part?.text) {
                 fullReply += part.text;
-                // Render markdown on the fly
                 contentEl.innerHTML = marked.parse(fullReply);
                 scrollToBottom();
             }
         }
-        
-        // Highlight code blocks once after the stream finishes to prevent extreme UI lag
+
         contentEl.querySelectorAll('pre code').forEach((block) => {
             hljs.highlightElement(block);
         });
@@ -209,6 +218,12 @@ async function sendMessage() {
         saveChats();
     } catch (err) {
         contentEl.innerHTML = `<span style="color:var(--brutal-red)">[ERROR: ${err.message}]</span>`;
+        
+        // Revert the user message so the chat history isn't corrupted by consecutive user roles
+        if (chat.messages[chat.messages.length - 1]?.role === 'user') {
+            chat.messages.pop();
+            saveChats();
+        }
     } finally {
         STATE.isThinking = false;
         el.sendBtn.disabled = false;
@@ -225,23 +240,22 @@ function addMessage(role, text) {
         <span class="label">${role === 'user' ? 'YOU' : 'BRUTAL'}</span>
         <div class="content"></div>
     `;
-    
-    // Safely inject text to prevent user-driven XSS
+
     const contentDiv = div.querySelector('.content');
     if (role === 'user') {
         contentDiv.textContent = text;
     } else {
         contentDiv.innerHTML = marked.parse(text);
     }
-    
+
     el.messages.appendChild(div);
-    
+
     if (role === 'brutal') {
         div.querySelectorAll('pre code').forEach((block) => {
             hljs.highlightElement(block);
         });
     }
-    
+
     scrollToBottom();
     return div;
 }
@@ -283,6 +297,4 @@ el.newChatBtn.addEventListener('click', () => {
         el.input.focus();
     }
 });
-
-// Start app
 init();
