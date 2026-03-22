@@ -153,13 +153,10 @@ header {
 .status-pill {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     background: var(--bg-card);
-    padding: 0.4rem 0.8rem;
+    padding: 0.5rem;
     border-radius: 99px;
     border: 1px solid var(--border-color);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
 }
 
 .indicator {

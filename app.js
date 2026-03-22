@@ -24,7 +24,6 @@ const el = {
     input: document.getElementById('user-input'),
     sendBtn: document.getElementById('send-btn'),
     statusPill: document.getElementById('status-pill'),
-    statusText: document.getElementById('status-text'),
     loginOverlay: document.getElementById('login-overlay'),
     loginBtn: document.getElementById('login-btn'),
     sidebar: document.getElementById('sidebar'),
@@ -44,20 +43,17 @@ async function init() {
 
         if (!puter.auth.isSignedIn()) {
             el.loginOverlay.classList.remove('hidden');
-            el.statusText.innerText = "Waiting for Login...";
         } else {
             onReady();
         }
     } catch (err) {
         console.error("Initialization failed:", err);
-        el.statusText.innerText = "Connection Failed";
     }
 }
 
 function onReady() {
     el.loginOverlay.classList.add('hidden');
     el.statusPill.classList.add('online');
-    el.statusText.innerText = "Connected to Gemini";
     el.sendBtn.disabled = false;
     loadChats();
     el.input.focus();
