@@ -25,14 +25,14 @@ const el = {
     messages: document.getElementById('messages'),
     input: document.getElementById('user-input'),
     sendBtn: document.getElementById('send-btn'),
-    statusPill: document.getElementById('status-pill'),
     loginOverlay: document.getElementById('login-overlay'),
     loginBtn: document.getElementById('login-btn'),
     sidebar: document.getElementById('sidebar'),
     chatList: document.getElementById('chat-list'),
     newChatBtn: document.getElementById('new-chat-btn'),
     chatWrapper: document.getElementById('chat-wrapper'),
-    micBtn: document.getElementById('mic-btn')
+    micBtn: document.getElementById('mic-btn'),
+    sidebarToggle: document.getElementById('sidebar-toggle')
 };
 
 // --- Initialization ---
@@ -55,7 +55,6 @@ async function init() {
 
 function onReady() {
     el.loginOverlay.classList.add('hidden');
-    el.statusPill.classList.add('online');
     el.sendBtn.disabled = false;
     loadChats();
     el.input.focus();
@@ -185,7 +184,6 @@ async function sendMessage() {
 
     STATE.isThinking = true;
     el.sendBtn.disabled = true;
-    el.statusPill.classList.add('loading');
 
     const brutalMsgEl = addMessage('brutal', '...');
     const contentEl = brutalMsgEl.querySelector('.content');
@@ -227,7 +225,6 @@ async function sendMessage() {
     } finally {
         STATE.isThinking = false;
         el.sendBtn.disabled = false;
-        el.statusPill.classList.remove('loading');
         scrollToBottom();
     }
 }
@@ -281,6 +278,10 @@ el.input.addEventListener('keydown', (e) => {
 });
 
 el.sendBtn.addEventListener('click', sendMessage);
+
+el.sidebarToggle.addEventListener('click', () => {
+    el.sidebar.classList.toggle('collapsed');
+});
 
 el.loginBtn.addEventListener('click', async () => {
     try {
