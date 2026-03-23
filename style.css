@@ -99,26 +99,23 @@ body {
     flex: 1;
 }
 
-.delete-chat-btn {
+.edit-chat-btn {
     background: transparent;
     color: var(--text-secondary);
     border: none;
     cursor: pointer;
-    font-size: 1.2rem;
-    line-height: 1;
-    padding: 0 4px;
-    border-radius: 4px;
+    padding: 0;
+    display: flex;
     opacity: 0;
-    transition: opacity 0.2s, color 0.2s, background 0.2s;
+    transition: opacity 0.2s, color 0.2s;
 }
 
-.chat-item:hover .delete-chat-btn {
+.chat-item:hover .edit-chat-btn {
     opacity: 1;
 }
 
-.delete-chat-btn:hover {
-    color: var(--brutal-red);
-    background: var(--accent-glow);
+.edit-chat-btn:hover {
+    color: var(--text-primary);
 }
 
 .chat-item:hover, .chat-item.active {
@@ -402,83 +399,6 @@ textarea {
 #login-btn:hover { background: white; }
 
 .hidden { display: none !important; opacity: 0; pointer-events: none; }
-
-/* Edit Chat Modal */
-.modal-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-    animation: fadeIn 0.2s ease-out;
-}
-
-.modal-card {
-    background: var(--bg-card);
-    padding: 2rem;
-    border-radius: 16px;
-    border: 1px solid var(--border-color);
-    width: 90%;
-    max-width: 400px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-}
-
-.modal-input {
-    width: 100%;
-    background: var(--bg-input);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-family: var(--font-sans);
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
-    outline: none;
-}
-
-.modal-input:focus {
-    border-color: var(--text-secondary);
-}
-
-.modal-btn-row {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
-
-.modal-btn {
-    background: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: background 0.2s;
-}
-
-.modal-btn:hover { background: var(--border-color); }
-
-.modal-btn.danger {
-    background: var(--accent-glow);
-    color: var(--brutal-red);
-    border-color: transparent;
-    margin-right: auto;
-}
-
-.modal-btn.danger:hover { background: var(--brutal-red); color: white; }
-
-.modal-btn.primary {
-    background: var(--text-primary);
-    color: var(--bg-main);
-    border-color: var(--text-primary);
-    font-weight: 600;
-}
-
-.modal-btn.primary:hover { background: white; }
 
 /* Mobile Adjustments */
 @media (max-width: 768px) {
