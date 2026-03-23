@@ -106,11 +106,19 @@ body {
     cursor: pointer;
     padding: 0;
     display: flex;
-    transition: color 0.2s;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.chat-item:hover .edit-chat-btn {
+    opacity: 1;
+    transform: scale(1);
 }
 
 .edit-chat-btn:hover {
     color: var(--text-primary);
+    transform: scale(1.15);
 }
 
 .chat-item:hover, .chat-item.active {
