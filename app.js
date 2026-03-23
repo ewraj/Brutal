@@ -152,21 +152,93 @@ function renderSidebar() {
         titleSpan.className = 'chat-title';
         titleSpan.innerText = chat.title;
         
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-chat-btn';
-        deleteBtn.innerHTML = '&times;';
-        deleteBtn.title = 'Delete Chat';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevent triggering switchChat
-            deleteChat(chat.id);
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-chat-btn';
+        editBtn.innerHTML = '&#9998;';
+        editBtn.title = 'Edit Chat';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            openEditModal(chat.id);
         };
         
         div.appendChild(titleSpan);
-        div.appendChild(deleteBtn);
+        div.appendChild(editBtn);
         
         div.onclick = () => switchChat(chat.id);
         el.chatList.appendChild(div);
     }
+}
+
+function openEditModal(id) {
+    const chat = STATE.chats[id];
+    if (!chat) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+
+    const card = document.createElement('div');
+    card.className = 'modal-card';
+
+    const title = document.createElement('h3');
+    title.innerText = 'Edit Chat';
+    title.style.marginBottom = '1rem';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'modal-input';
+    input.value = chat.title;
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'modal-btn-row';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'modal-btn primary';
+    renameBtn.innerText = 'Rename';
+    renameBtn.onclick = () => {
+        const newTitle = input.value.trim();
+        if (newTitle) {
+            chat.title = newTitle;
+            saveChats();
+            renderSidebar();
+        }
+        document.body.removeChild(overlay);
+    };
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'modal-btn danger';
+    deleteBtn.innerText = 'Delete';
+    deleteBtn.onclick = () => {
+        if (confirm("Are you sure you want to delete this chat?")) {
+            deleteChat(id);
+            document.body.removeChild(overlay);
+        }
+    };
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'modal-btn';
+    cancelBtn.innerText = 'Cancel';
+    cancelBtn.onclick = () => {
+        document.body.removeChild(overlay);
+    };
+
+    btnRow.appendChild(deleteBtn);
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(renameBtn);
+
+    card.appendChild(title);
+    card.appendChild(input);
+    card.appendChild(btnRow);
+    overlay.appendChild(card);
+
+    document.body.appendChild(overlay);
+    
+    input.focus();
+    input.select();
+    
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') renameBtn.click();
+        if (e.key === 'Escape') cancelBtn.click();
+    });
 }
 
 function deleteChat(id) {
