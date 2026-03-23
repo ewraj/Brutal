@@ -4,7 +4,7 @@ BRUTAL is a zero-sycophancy AI technical advisor designed for ruthless efficienc
 
 ## Components
 
-### 1. Terminal Wrapper (`brutalv0.4.py`)
+### 1. Terminal (`brutalv0.4.py`)
 A CLI tool powered by Puter.js that provides free, unlimited Gemini access directly from your terminal. It features a custom "Brutal" persona and a local bridge server to interact with the AI.
 
 **Usage:**
