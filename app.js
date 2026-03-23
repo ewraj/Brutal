@@ -46,51 +46,68 @@ async function init() {
         if (!puter.auth.isSignedIn()) {
             el.loginOverlay.classList.remove('hidden');
         } else {
-            onReady();
+            await onReady();
         }
     } catch (err) {
         console.error("Initialization failed:", err);
     }
 }
 
-function onReady() {
+async function onReady() {
     el.loginOverlay.classList.add('hidden');
     el.sendBtn.disabled = false;
-    loadChats();
+    await loadChats();
     el.input.focus();
 }
 
 // --- Chat History Logic ---
-function loadChats() {
-    const saved = localStorage.getItem('brutal_chats');
-    const savedCurrentId = localStorage.getItem('brutal_current_chat_id');
-    if (saved) {
-        try {
-            STATE.chats = JSON.parse(saved);
-            for (const id in STATE.chats) {
-                if (STATE.chats[id].messages.length <= 1) {
-                    delete STATE.chats[id];
-                }
-            }
-        } catch (e) {
-            console.error("Failed to parse chats", e);
-            STATE.chats = {};
+async function loadChats() {
+    try {
+        let saved = await puter.kv.get('brutal_chats');
+        let savedCurrentId = await puter.kv.get('brutal_current_chat_id');
+        
+        // Seamless migration from old localStorage to Puter KV
+        if (!saved && localStorage.getItem('brutal_chats')) {
+            saved = localStorage.getItem('brutal_chats');
+            savedCurrentId = localStorage.getItem('brutal_current_chat_id');
+            await puter.kv.set('brutal_chats', saved);
+            if (savedCurrentId) await puter.kv.set('brutal_current_chat_id', savedCurrentId);
+            
+            localStorage.removeItem('brutal_chats');
+            localStorage.removeItem('brutal_current_chat_id');
         }
-    }
 
-    if (savedCurrentId && STATE.chats[savedCurrentId]) {
-        STATE.currentChatId = savedCurrentId;
-        renderSidebar();
-        renderCurrentChat();
-    } else {
+        if (saved) {
+            try {
+                STATE.chats = typeof saved === 'string' ? JSON.parse(saved) : saved;
+                for (const id in STATE.chats) {
+                    if (STATE.chats[id].messages.length <= 1) {
+                        delete STATE.chats[id];
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse chats", e);
+                STATE.chats = {};
+            }
+        }
+
+        if (savedCurrentId && STATE.chats[savedCurrentId]) {
+            STATE.currentChatId = String(savedCurrentId);
+            renderSidebar();
+            renderCurrentChat();
+        } else {
+            startNewChat();
+        }
+    } catch (err) {
+        console.error("Failed to load chats from Puter KV", err);
         startNewChat();
     }
 }
 
 function saveChats() {
-    localStorage.setItem('brutal_chats', JSON.stringify(STATE.chats));
+    puter.kv.set('brutal_chats', JSON.stringify(STATE.chats)).catch(console.error);
     if (STATE.currentChatId) {
-        localStorage.setItem('brutal_current_chat_id', STATE.currentChatId);
+        puter.kv.set('brutal_current_chat_id', STATE.currentChatId).catch(console.error);
     }
 }
 
@@ -130,9 +147,42 @@ function renderSidebar() {
     for (const chat of sortedChats) {
         const div = document.createElement('div');
         div.className = `chat-item ${chat.id === STATE.currentChatId ? 'active' : ''}`;
-        div.innerText = chat.title;
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'chat-title';
+        titleSpan.innerText = chat.title;
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-chat-btn';
+        deleteBtn.innerHTML = '&times;';
+        deleteBtn.title = 'Delete Chat';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevent triggering switchChat
+            deleteChat(chat.id);
+        };
+        
+        div.appendChild(titleSpan);
+        div.appendChild(deleteBtn);
+        
         div.onclick = () => switchChat(chat.id);
         el.chatList.appendChild(div);
+    }
+}
+
+function deleteChat(id) {
+    delete STATE.chats[id];
+    saveChats();
+    
+    if (STATE.currentChatId === id) {
+        STATE.currentChatId = null;
+        const remainingChats = Object.values(STATE.chats).sort((a, b) => b.id - a.id);
+        if (remainingChats.length > 0) {
+            switchChat(remainingChats[0].id);
+        } else {
+            startNewChat();
+        }
+    } else {
+        renderSidebar();
     }
 }
 
@@ -286,7 +336,7 @@ el.sidebarToggle.addEventListener('click', () => {
 el.loginBtn.addEventListener('click', async () => {
     try {
         await puter.auth.signIn();
-        onReady();
+        await onReady();
     } catch (err) {
         alert("Login failed. Please try again.");
     }
