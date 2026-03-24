@@ -14,16 +14,11 @@ BRUTAL is a zero-sycophancy AI technical advisor designed for ruthless efficienc
 - Responsive Design: Fully functional on both desktop and mobile devices with a collapsing sidebar.
 - Keyboard Shortcuts: Quickly create new chats or trigger exports.
 
-## How to Run
+## Access
 
-Since the application is entirely client-side and relies on Puter.js for authentication and backend services, you can run it very easily:
+The Brutal Web App is hosted live on GitHub Pages and can be accessed directly at: https://ewraj.github.io/Brutal/
 
-1. Clone the repository.
-2. Start a local web server (Recommended): python3 -m http.server
-3. Visit http://localhost:8000 in your web browser.
-4. Log in using your Puter account when prompted.
-
-Alternatively, you can just open index.html directly in a modern web browser.
+Because the application is entirely client-side and relies on Puter.js for all backend services, no local installation or server is required to use it. Simply open the link and log in with your Puter account.
 
 ## Project Structure
 
