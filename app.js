@@ -52,7 +52,6 @@ const el = {
     sidebarToggle: document.getElementById('sidebar-toggle'),
     exportBtn: document.getElementById('export-btn'),
     searchInput: document.getElementById('search-input'),
-    modelSelect: document.getElementById('model-select'),
     attachBtn: document.getElementById('attach-btn'),
     fileInput: document.getElementById('file-input'),
     attachmentPreview: document.getElementById('attachment-preview'),
@@ -93,8 +92,6 @@ async function onReady() {
 
 async function loadSettings() {
     try {
-        const model = await puter.kv.get('brutal_model');
-        if (model) { STATE.currentModel = model; el.modelSelect.value = model; }
         const modeKey = await puter.kv.get('brutal_mode_key');
         const customPersona = await puter.kv.get('brutal_custom_persona');
         if (modeKey && MODES[modeKey]) STATE.currentModeKey = modeKey;
@@ -647,6 +644,7 @@ el.stopBtn.addEventListener('click', () => { if (STATE.isThinking) STATE.cancelS
 
 el.sidebarToggle.addEventListener('click', () => {
     if (window.innerWidth <= 768) {
+        el.sidebar.classList.remove('collapsed'); // clear any desktop-collapsed state
         el.sidebar.classList.contains('mobile-open') ? closeMobileSidebar() : openMobileSidebar();
     } else {
         el.sidebar.classList.toggle('collapsed');
@@ -660,10 +658,6 @@ el.personaBtn.addEventListener('click', openPersonaModal);
 el.searchInput.addEventListener('input', () => { STATE.searchQuery = el.searchInput.value; renderSidebar(); });
 el.searchInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { el.searchInput.value = ''; STATE.searchQuery = ''; renderSidebar(); } });
 
-el.modelSelect.addEventListener('change', () => {
-    STATE.currentModel = el.modelSelect.value;
-    puter.kv.set('brutal_model', STATE.currentModel).catch(console.error);
-});
 
 el.attachBtn.addEventListener('click', () => el.fileInput.click());
 el.fileInput.addEventListener('change', () => { if (el.fileInput.files[0]) handleFileSelect(el.fileInput.files[0]); });
