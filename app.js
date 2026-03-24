@@ -17,7 +17,8 @@ const STATE = {
     currentChatId: null,
     isThinking: false,
     recognition: null,
-    isListening: false
+    isListening: false,
+    cancelStream: false
 };
 
 // UI Elements
@@ -25,6 +26,7 @@ const el = {
     messages: document.getElementById('messages'),
     input: document.getElementById('user-input'),
     sendBtn: document.getElementById('send-btn'),
+    stopBtn: document.getElementById('stop-btn'),
     loginOverlay: document.getElementById('login-overlay'),
     loginBtn: document.getElementById('login-btn'),
     sidebar: document.getElementById('sidebar'),
@@ -139,6 +141,10 @@ function switchChat(id) {
     saveChats();
     renderSidebar();
     renderCurrentChat();
+
+    if (window.innerWidth <= 768) {
+        el.sidebar.classList.remove('collapsed');
+    }
 }
 
 function renderSidebar() {
@@ -158,6 +164,7 @@ function renderSidebar() {
         editBtn.title = 'Edit Chat';
         editBtn.onclick = (e) => {
             e.stopPropagation();
+            if (STATE.isThinking) return;
             openEditModal(chat.id);
         };
         
@@ -170,6 +177,7 @@ function renderSidebar() {
 }
 
 function openEditModal(id) {
+    if (STATE.isThinking) return;
     const chat = STATE.chats[id];
     if (!chat) return;
 
@@ -271,6 +279,7 @@ function renderCurrentChat() {
     chat.messages.forEach(m => {
         if (m.role !== 'system') addMessage(m.role, m.content);
     });
+    addRegenerateButtonIfApplicable();
     scrollToBottom();
 }
 
@@ -281,12 +290,10 @@ async function sendMessage() {
         STATE.recognition.stop();
     }
 
+    if (STATE.isThinking) return;
     const text = el.input.value.trim();
-    if (!text || STATE.isThinking) return;
+    if (!text) return;
 
-    // ✅ FIX 1: 'chat' was never declared — this caused a silent crash
-    // that prevented ANY of the sendMessage logic from running,
-    // which also broke the STT text appearing to "do nothing".
     const chat = STATE.chats[STATE.currentChatId];
     if (!chat) return;
 
@@ -303,55 +310,110 @@ async function sendMessage() {
         renderSidebar();
     }
     saveChats();
+    await executeGeneration({ isRegeneration: false });
+}
 
+async function regenerateLastResponse() {
+    if (STATE.isThinking) return;
+
+    const chat = STATE.chats[STATE.currentChatId];
+    if (!chat || chat.messages.length < 2) return;
+
+    if (chat.messages[chat.messages.length - 1].role !== 'assistant') return;
+
+    // Remove the last AI response from state and the DOM
+    chat.messages.pop();
+    const lastMessageBubble = Array.from(el.messages.children).findLast(el => el.classList.contains('message'));
+    if (lastMessageBubble && lastMessageBubble.classList.contains('brutal')) {
+        lastMessageBubble.remove();
+    }
+
+    await executeGeneration({ isRegeneration: true });
+}
+
+async function executeGeneration({ isRegeneration = false } = {}) {
+    const chat = STATE.chats[STATE.currentChatId];
+    
     STATE.isThinking = true;
+    STATE.cancelStream = false;
     el.sendBtn.disabled = true;
+    el.sendBtn.classList.add('hidden');
+    el.stopBtn.classList.remove('hidden');
+
+    // Remove any existing regenerate button before starting
+    document.querySelectorAll('.regenerate-btn-wrapper').forEach(el => el.remove());
 
     const brutalMsgEl = addMessage('brutal', '...');
     const contentEl = brutalMsgEl.querySelector('.content');
 
     try {
-        // Pass a pristine copy of the messages to prevent SDK mutation issues
         const payload = chat.messages.map(m => ({ role: m.role, content: m.content }));
-
-        const stream = await puter.ai.chat(payload, {
-            model: 'gemini-2.0-flash',
-            stream: true
-        });
-
+        const stream = await puter.ai.chat(payload, { model: 'gemini-2.0-flash', stream: true });
         let fullReply = "";
         contentEl.innerHTML = "";
 
         for await (const part of stream) {
+            if (STATE.cancelStream) break;
             if (part?.text) {
                 fullReply += part.text;
                 contentEl.innerHTML = marked.parse(fullReply);
-                scrollToBottom();
+                scrollToBottom(false);
             }
         }
-
-        contentEl.querySelectorAll('pre code').forEach((block) => {
-            hljs.highlightElement(block);
-        });
-
+        contentEl.querySelectorAll('pre code').forEach(hljs.highlightElement);
         chat.messages.push({ role: 'assistant', content: fullReply });
         saveChats();
     } catch (err) {
         contentEl.innerHTML = `<span style="color:var(--brutal-red)">[ERROR: ${err.message}]</span>`;
         
-        // Revert the user message so the chat history isn't corrupted by consecutive user roles
-        if (chat.messages[chat.messages.length - 1]?.role === 'user') {
-            chat.messages.pop();
+        // IMPORTANT: Only revert the user message on a *new* send, not a regeneration.
+        // This prevents the original prompt from being deleted on a failed regeneration.
+        if (!isRegeneration && chat.messages[chat.messages.length - 1]?.role === 'user') {
+            const failedMsg = chat.messages.pop();
             saveChats();
+            
+            // Restore the text to the input box so the user doesn't lose their prompt
+            if (el.input.value.trim() === '') {
+                el.input.value = failedMsg.content;
+                adjustTextareaHeight();
+            }
         }
     } finally {
         STATE.isThinking = false;
         el.sendBtn.disabled = false;
+        el.sendBtn.classList.remove('hidden');
+        el.stopBtn.classList.add('hidden');
+        STATE.cancelStream = false;
+        addRegenerateButtonIfApplicable();
         scrollToBottom();
     }
 }
 
 // --- UI Helpers ---
+function addRegenerateButtonIfApplicable() {
+    document.querySelectorAll('.regenerate-btn-wrapper').forEach(el => el.remove());
+
+    const chat = STATE.chats[STATE.currentChatId];
+    if (!chat || STATE.isThinking) return;
+
+    const lastMessage = chat.messages[chat.messages.length - 1];
+    const lastMessageBubble = Array.from(el.messages.children).findLast(el => el.classList.contains('message'));
+
+    if (lastMessage?.role === 'assistant' && lastMessageBubble) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'regenerate-btn-wrapper';
+        
+        const button = document.createElement('button');
+        button.className = 'regenerate-btn';
+        button.title = 'Regenerate Response';
+        button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg><span>Regenerate</span>`;
+        button.onclick = regenerateLastResponse;
+        
+        wrapper.appendChild(button);
+        lastMessageBubble.appendChild(wrapper);
+    }
+}
+
 function addMessage(role, text) {
     const div = document.createElement('div');
     div.className = `message ${role}`;
@@ -379,8 +441,12 @@ function addMessage(role, text) {
     return div;
 }
 
-function scrollToBottom() {
+function scrollToBottom(force = true) {
     const container = document.getElementById('chat-container');
+    if (!force) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+        if (!isNearBottom) return;
+    }
     container.scrollTop = container.scrollHeight;
 }
 
@@ -394,12 +460,27 @@ el.input.addEventListener('input', adjustTextareaHeight);
 
 el.input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+        if (window.innerWidth <= 768) return; // Allow default new line on mobile touch keyboards
         e.preventDefault();
         sendMessage();
     }
 });
 
 el.sendBtn.addEventListener('click', sendMessage);
+
+el.stopBtn.addEventListener('click', () => {
+    if (STATE.isThinking) {
+        STATE.cancelStream = true;
+    }
+});
+
+document.getElementById('main-content').addEventListener('click', (e) => {
+    if (window.innerWidth <= 768 && el.sidebar.classList.contains('collapsed')) {
+        if (!e.target.closest('#sidebar-toggle')) {
+            el.sidebar.classList.remove('collapsed');
+        }
+    }
+});
 
 el.sidebarToggle.addEventListener('click', () => {
     el.sidebar.classList.toggle('collapsed');
@@ -417,6 +498,9 @@ el.loginBtn.addEventListener('click', async () => {
 el.newChatBtn.addEventListener('click', () => {
     if (!STATE.isThinking) {
         startNewChat();
+        if (window.innerWidth <= 768) {
+            el.sidebar.classList.remove('collapsed');
+        }
         el.input.focus();
     }
 });

@@ -23,6 +23,7 @@ body {
     color: var(--text-primary);
     font-family: var(--font-sans);
     height: 100vh;
+    height: 100dvh;
     display: flex;
     overflow: hidden;
 }
@@ -31,6 +32,7 @@ body {
     display: flex;
     flex-direction: row;
     width: 100%;
+    height: 100%;
     margin: 0 auto;
     background: linear-gradient(to bottom, var(--bg-main), #0f0f12);
 }
@@ -46,6 +48,7 @@ body {
     gap: 1.5rem;
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -143,6 +146,11 @@ body {
     min-height: 0; /* Critical for child flex containers with overflow */
     position: relative;
     transition: justify-content 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#chat-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* In the initial state (new chat), center the content (the footer) */
@@ -361,6 +369,55 @@ textarea {
 #send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 #send-btn svg { width: 18px; height: 18px; }
 
+#stop-btn {
+    background: var(--text-secondary);
+    color: var(--bg-main);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+#stop-btn:hover { transform: scale(1.05); }
+#stop-btn:active { transform: scale(0.95); }
+#stop-btn svg { width: 14px; height: 14px; }
+
+.regenerate-btn-wrapper {
+    display: flex;
+    justify-content: center;
+    padding-top: 0.5rem;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.regenerate-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem 0.75rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.regenerate-btn:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.regenerate-btn svg {
+    transition: transform 0.4s ease;
+}
+.regenerate-btn:hover svg { transform: rotate(180deg); }
+
 /* Login Overlay */
 #login-overlay {
     position: fixed;
@@ -405,7 +462,26 @@ textarea {
 
 /* Mobile Adjustments */
 @media (max-width: 768px) {
-    #sidebar { display: none; }
+    #sidebar {
+        position: absolute;
+        left: -260px;
+        height: 100%;
+        z-index: 100;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #sidebar.collapsed {
+        left: 0;
+        width: 260px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        border-right-color: var(--border-color);
+    }
+    #sidebar.collapsed + #main-content {
+        transform: translateX(260px);
+    }
+    #main-content {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
     #chat-container { padding: 1rem; }
     #messages { padding: 0; gap: 1.5rem; }
     .message.brutal .content { padding: 1rem; }
