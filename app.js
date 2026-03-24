@@ -30,11 +30,13 @@ const el = {
     loginOverlay: document.getElementById('login-overlay'),
     loginBtn: document.getElementById('login-btn'),
     sidebar: document.getElementById('sidebar'),
+    sidebarOverlay: document.getElementById('sidebar-overlay'),
     chatList: document.getElementById('chat-list'),
     newChatBtn: document.getElementById('new-chat-btn'),
     chatWrapper: document.getElementById('chat-wrapper'),
     micBtn: document.getElementById('mic-btn'),
-    sidebarToggle: document.getElementById('sidebar-toggle')
+    sidebarToggle: document.getElementById('sidebar-toggle'),
+    exportBtn: document.getElementById('export-btn')
 };
 
 // --- Initialization ---
@@ -59,6 +61,7 @@ async function onReady() {
     el.loginOverlay.classList.add('hidden');
     el.sendBtn.disabled = false;
     await loadChats();
+    restoreDraft();
     el.input.focus();
 }
 
@@ -143,7 +146,7 @@ function switchChat(id) {
     renderCurrentChat();
 
     if (window.innerWidth <= 768) {
-        el.sidebar.classList.remove('collapsed');
+        closeMobileSidebar();
     }
 }
 
@@ -299,6 +302,7 @@ async function sendMessage() {
 
     addMessage('user', text);
     el.input.value = '';
+    localStorage.removeItem('brutal_draft');
     adjustTextareaHeight();
 
     chat.messages.push({ role: 'user', content: text });
@@ -455,8 +459,81 @@ function adjustTextareaHeight() {
     el.input.style.height = el.input.scrollHeight + 'px';
 }
 
+// --- Draft Save/Restore ---
+function saveDraft() {
+    const text = el.input.value;
+    if (text.trim()) {
+        localStorage.setItem('brutal_draft', text);
+    } else {
+        localStorage.removeItem('brutal_draft');
+    }
+}
+
+function restoreDraft() {
+    const draft = localStorage.getItem('brutal_draft');
+    if (draft) {
+        el.input.value = draft;
+        adjustTextareaHeight();
+    }
+}
+
+// --- Obsidian MD Export ---
+function exportToObsidian() {
+    const chat = STATE.chats[STATE.currentChatId];
+    if (!chat) return;
+
+    const userMessages = chat.messages.filter(m => m.role !== 'system');
+    if (userMessages.length === 0) {
+        alert('Nothing to export — start a conversation first.');
+        return;
+    }
+
+    const date = new Date().toISOString().split('T')[0];
+    const safeTitle = chat.title.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'BRUTAL Chat';
+
+    let md = `---
+title: ${safeTitle}
+date: ${date}
+tags: [brutal, ai, chat]
+---
+
+# ${safeTitle}
+
+`;
+
+    for (const msg of userMessages) {
+        if (msg.role === 'user') {
+            md += `## You\n\n${msg.content}\n\n`;
+        } else if (msg.role === 'assistant') {
+            md += `## BRUTAL\n\n${msg.content}\n\n`;
+        }
+    }
+
+    const blob = new Blob([md.trim()], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeTitle} ${date}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// --- Mobile Sidebar Helpers ---
+function openMobileSidebar() {
+    el.sidebar.classList.add('mobile-open');
+    el.sidebarOverlay.classList.add('visible');
+}
+
+function closeMobileSidebar() {
+    el.sidebar.classList.remove('mobile-open');
+    el.sidebarOverlay.classList.remove('visible');
+}
+
 // --- Event Listeners ---
-el.input.addEventListener('input', adjustTextareaHeight);
+el.input.addEventListener('input', () => {
+    adjustTextareaHeight();
+    saveDraft();
+});
 
 el.input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -474,17 +551,23 @@ el.stopBtn.addEventListener('click', () => {
     }
 });
 
-document.getElementById('main-content').addEventListener('click', (e) => {
-    if (window.innerWidth <= 768 && el.sidebar.classList.contains('collapsed')) {
-        if (!e.target.closest('#sidebar-toggle')) {
-            el.sidebar.classList.remove('collapsed');
+el.sidebarToggle.addEventListener('click', () => {
+    if (window.innerWidth <= 768) {
+        // Mobile: toggle open/close with overlay
+        if (el.sidebar.classList.contains('mobile-open')) {
+            closeMobileSidebar();
+        } else {
+            openMobileSidebar();
         }
+    } else {
+        // Desktop: collapse sidebar by width
+        el.sidebar.classList.toggle('collapsed');
     }
 });
 
-el.sidebarToggle.addEventListener('click', () => {
-    el.sidebar.classList.toggle('collapsed');
-});
+el.sidebarOverlay.addEventListener('click', closeMobileSidebar);
+
+el.exportBtn.addEventListener('click', exportToObsidian);
 
 el.loginBtn.addEventListener('click', async () => {
     try {
@@ -499,9 +582,18 @@ el.newChatBtn.addEventListener('click', () => {
     if (!STATE.isThinking) {
         startNewChat();
         if (window.innerWidth <= 768) {
-            el.sidebar.classList.remove('collapsed');
+            closeMobileSidebar();
         }
         el.input.focus();
     }
 });
+
+// Warn before refresh/close if AI is generating
+window.addEventListener('beforeunload', (e) => {
+    if (STATE.isThinking) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
 init();

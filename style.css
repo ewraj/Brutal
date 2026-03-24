@@ -460,31 +460,107 @@ textarea {
 
 .hidden { display: none !important; opacity: 0; pointer-events: none; }
 
+/* Export Button */
+#export-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+#export-btn:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+}
+#export-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Mobile overlay for sidebar backdrop */
+#sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+}
+
 /* Mobile Adjustments */
 @media (max-width: 768px) {
+    body {
+        /* Prevent viewport resize bugs when keyboard opens */
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    #app {
+        height: 100dvh;
+    }
+
+    /* Sidebar: slide in from left, hidden by default */
     #sidebar {
-        position: absolute;
-        left: -260px;
-        height: 100%;
+        position: fixed;
+        left: -280px;
+        top: 0;
+        height: 100dvh;
+        width: 260px !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
         z-index: 100;
         transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-right-color: var(--border-color) !important;
     }
-    #sidebar.collapsed {
+
+    /* collapsed class on mobile = sidebar IS open (slide into view) */
+    #sidebar.mobile-open {
         left: 0;
-        width: 260px;
-        padding-left: 1rem;
-        padding-right: 1rem;
-        border-right-color: var(--border-color);
     }
-    #sidebar.collapsed + #main-content {
-        transform: translateX(260px);
+
+    #sidebar-overlay.visible {
+        display: block;
     }
+
     #main-content {
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 100%;
+        transition: none;
     }
+
+    /* Fix scroll: chat-container must fill all remaining vertical space */
+    #chat-wrapper {
+        height: 100%;
+    }
+
+    #chat-wrapper:not(.initial-state) #chat-container {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    header {
+        padding: 1rem;
+    }
+
+    footer {
+        padding: 1rem;
+    }
+
     #chat-container { padding: 1rem; }
     #messages { padding: 0; gap: 1.5rem; }
     .message.brutal .content { padding: 1rem; }
+
+    #export-btn span { display: none; }
+    #export-btn { padding: 0.4rem 0.5rem; }
 }
 
 /* Edit Chat Modal */
