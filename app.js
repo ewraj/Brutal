@@ -74,12 +74,13 @@ const ParticleSphere = (() => {
     let explodeTime = 0;
     const particles = [];
     const N = 1000;
-    const R = 280;
+    const R = 360; // Increased size as requested
     const bloodRed = '220, 38, 38';
     const goldenRatio = (1 + Math.sqrt(5)) / 2;
 
     let mouseX = 0, mouseY = 0;
     let targetRotX = 0, targetRotY = 0, rotX = 0, rotY = 0;
+    let resizeObserver = null;
 
     function onMouseMove(e) {
         const rect = canvas.getBoundingClientRect();
@@ -92,8 +93,18 @@ const ParticleSphere = (() => {
     function resize() {
         const parent = canvas.parentElement;
         if (!parent) return;
-        width = canvas.width = parent.clientWidth;
-        height = canvas.height = parent.clientHeight;
+        const rect = parent.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Use exact pixel dimensions to prevent oval stretching
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        
+        ctx.scale(dpr, dpr);
+        width = rect.width;
+        height = rect.height;
         cx = width / 2;
         cy = height / 2;
     }
@@ -198,6 +209,13 @@ const ParticleSphere = (() => {
         canvas.style.opacity = '1';
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('resize', resize);
+        
+        // Ensure flexbox container changes don't warp aspect ratio
+        if (!resizeObserver && canvas.parentElement) {
+            resizeObserver = new ResizeObserver(resize);
+            resizeObserver.observe(canvas.parentElement);
+        }
+        
         draw();
     }
 
@@ -231,6 +249,10 @@ const ParticleSphere = (() => {
         canvas.style.display = 'none';
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('resize', resize);
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+            resizeObserver = null;
+        }
     }
 
     return { init, explode, destroy };
