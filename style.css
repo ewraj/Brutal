@@ -310,7 +310,21 @@ header {
     position: relative;
 }
 
-#chat-container { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#particle-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    display: none;
+}
+
+#chat-wrapper.initial-state #particle-canvas {
+    pointer-events: auto;
+}
+
+#chat-container { overflow-y: auto; -webkit-overflow-scrolling: touch; z-index: 1; position: relative; }
 
 #chat-wrapper.initial-state { justify-content: center; }
 #chat-wrapper:not(.initial-state) #chat-container { flex: 1; }
@@ -350,8 +364,11 @@ header {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    padding: 0.5rem 1.25rem 0;
+    padding: 0.75rem 1.25rem 0;
     opacity: 0.5;
+    max-width: 850px;
+    margin: 0 auto;
+    width: 100%;
 }
 .message.user .label { color: var(--text-secondary); }
 .message.brutal .label { color: var(--brutal-red); }
@@ -361,22 +378,19 @@ header {
     font-size: 0.9rem;
     word-break: break-word;
     padding: 0.5rem 1.25rem 1rem;
+    max-width: 850px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 .message.user .content {
     color: var(--text-secondary);
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    border-left: 2px solid rgba(113, 113, 122, 0.4);
-    margin-left: 1.25rem;
-    padding: 0.5rem 1rem 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
 }
 
 .message.brutal .content {
-    border-left: 2px solid var(--brutal-red);
-    margin-left: 1.25rem;
-    padding: 0.5rem 1rem 0.75rem;
-    box-shadow: -4px 0 16px -6px rgba(220, 38, 38, 0.1);
+    color: var(--text-primary);
 }
 
 .token-count {
@@ -457,6 +471,8 @@ footer {
     display: flex;
     flex-direction: column;
     align-items: center;
+    z-index: 2;
+    position: relative;
 }
 
 .input-wrapper {
@@ -805,6 +821,8 @@ kbd {
     padding: 2rem;
     gap: 2rem;
     animation: fadeIn 0.4s ease-out;
+    z-index: 2;
+    position: relative;
 }
 
 #chat-wrapper.initial-state .workflow-panel { display: flex; }

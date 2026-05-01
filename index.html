@@ -65,6 +65,9 @@
                     </div>
                 </main>
 
+                <!-- Particle Sphere Canvas (visible in initial state) -->
+                <canvas id="particle-canvas"></canvas>
+
                 <!-- Workflow Panel (visible in initial state) -->
                 <div id="workflow-panel" class="workflow-panel">
                     <div class="workflow-header">
@@ -104,7 +107,7 @@
                         <input type="file" id="file-input" accept="image/*,.txt,.js,.py,.ts,.md,.json,.css,.html,.c,.cpp,.java,.go,.rs" style="display:none">
                         <div class="input-column">
                             <div id="attachment-preview" class="hidden"></div>
-                            <textarea id="user-input" placeholder="> enter command or describe your problem..." rows="1"></textarea>
+                            <textarea id="user-input" placeholder="Describe your problem or paste code..." rows="1"></textarea>
                         </div>
                         <button type="button" id="send-btn" disabled>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>

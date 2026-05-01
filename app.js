@@ -59,7 +59,182 @@ const el = {
     importFileInput: document.getElementById('import-file-input'),
     personaBtn: document.getElementById('persona-btn'),
     personaLabel: document.getElementById('persona-label'),
+    particleCanvas: document.getElementById('particle-canvas'),
 };
+
+// ─── Particle Sphere Engine ───────────────────────────────────────────────────
+
+const ParticleSphere = (() => {
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, cx, cy;
+    let animId = null;
+    let time = 0;
+    let exploding = false;
+    let explodeTime = 0;
+    const particles = [];
+    const N = 1000;
+    const R = 280;
+    const bloodRed = '220, 38, 38';
+    const goldenRatio = (1 + Math.sqrt(5)) / 2;
+
+    let mouseX = 0, mouseY = 0;
+    let targetRotX = 0, targetRotY = 0, rotX = 0, rotY = 0;
+
+    function onMouseMove(e) {
+        const rect = canvas.getBoundingClientRect();
+        mouseX = ((e.clientX - rect.left) - width / 2) / (width / 2);
+        mouseY = ((e.clientY - rect.top) - height / 2) / (height / 2);
+        targetRotY = mouseX * 0.8;
+        targetRotX = -mouseY * 0.8;
+    }
+
+    function resize() {
+        const parent = canvas.parentElement;
+        if (!parent) return;
+        width = canvas.width = parent.clientWidth;
+        height = canvas.height = parent.clientHeight;
+        cx = width / 2;
+        cy = height / 2;
+    }
+
+    function generate() {
+        particles.length = 0;
+        for (let i = 0; i < N; i++) {
+            let phi = Math.acos(1 - 2 * (i + 0.5) / N);
+            let theta = 2 * Math.PI * i / goldenRatio;
+            let x = Math.cos(theta) * Math.sin(phi);
+            let y = Math.sin(theta) * Math.sin(phi);
+            let z = Math.cos(phi);
+            let theta2 = theta + 0.03;
+            let x2 = Math.cos(theta2) * Math.sin(phi);
+            let y2 = Math.sin(theta2) * Math.sin(phi);
+            let z2 = Math.cos(phi);
+            particles.push({
+                bx: x, by: y, bz: z,
+                bx2: x2, by2: y2, bz2: z2,
+                wo: Math.random() * Math.PI * 2,
+                // Explosion velocity (set on explode)
+                evx: 0, evy: 0, ex: 0, ey: 0, eo: 1
+            });
+        }
+    }
+
+    function rot3D(x, y, z, rx, ry) {
+        let cy_ = Math.cos(rx), sy = Math.sin(rx);
+        let y1 = y * cy_ - z * sy, z1 = y * sy + z * cy_;
+        let cx_ = Math.cos(ry), sx = Math.sin(ry);
+        return { x: x * cx_ + z1 * sx, y: y1, z: -x * sx + z1 * cx_ };
+    }
+
+    function draw() {
+        animId = requestAnimationFrame(draw);
+        time++;
+        ctx.clearRect(0, 0, width, height);
+
+        if (exploding) {
+            explodeTime++;
+            // Draw exploding particles
+            let allGone = true;
+            for (let p of particles) {
+                p.ex += p.evx;
+                p.ey += p.evy;
+                p.eo -= 0.015;
+                if (p.eo > 0) {
+                    allGone = false;
+                    ctx.beginPath();
+                    ctx.arc(p.ex, p.ey, 1.5, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${bloodRed}, ${Math.max(0, p.eo)})`;
+                    ctx.fill();
+                }
+            }
+            if (allGone || explodeTime > 120) {
+                destroy();
+            }
+            return;
+        }
+
+        rotX += (targetRotX - rotX) * 0.04;
+        rotY += (targetRotY - rotY) * 0.04;
+        let autoRotY = rotY + time * 0.0015;
+
+        let projected = [];
+        const fl = 700;
+
+        for (let p of particles) {
+            let cr = R + Math.sin(time * 0.04 + p.wo) * 12;
+            let r1 = rot3D(p.bx * cr, p.by * cr, p.bz * cr, rotX, autoRotY);
+            let r2 = rot3D(p.bx2 * cr, p.by2 * cr, p.bz2 * cr, rotX, autoRotY);
+            projected.push({ x1: r1.x, y1: r1.y, x2: r2.x, y2: r2.y, z: r1.z });
+        }
+
+        projected.sort((a, b) => b.z - a.z);
+
+        for (let p of projected) {
+            if (p.z < -fl) continue;
+            let s = fl / (fl + p.z);
+            let sx1 = cx + p.x1 * s, sy1 = cy + p.y1 * s;
+            let sx2 = cx + p.x2 * s, sy2 = cy + p.y2 * s;
+            let depth = (p.z + R) / (2 * R);
+            let opacity = Math.max(0, depth) * 0.8;
+            if (opacity < 0.03) continue;
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(sx2, sy2);
+            ctx.lineWidth = 1.5 * s;
+            ctx.strokeStyle = `rgba(${bloodRed}, ${opacity})`;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+    }
+
+    function init() {
+        if (animId) return; // already running
+        exploding = false;
+        explodeTime = 0;
+        resize();
+        generate();
+        canvas.style.display = 'block';
+        canvas.style.opacity = '1';
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('resize', resize);
+        draw();
+    }
+
+    function explode() {
+        if (!animId || exploding) return;
+        exploding = true;
+        explodeTime = 0;
+        const fl = 700;
+        let autoRotY = rotY + time * 0.0015;
+        // Snapshot current screen positions and give them outward velocity
+        for (let p of particles) {
+            let cr = R + Math.sin(time * 0.04 + p.wo) * 12;
+            let r1 = rot3D(p.bx * cr, p.by * cr, p.bz * cr, rotX, autoRotY);
+            let s = fl / (fl + r1.z);
+            p.ex = cx + r1.x * s;
+            p.ey = cy + r1.y * s;
+            // Velocity: outward from center + some randomness
+            let dx = p.ex - cx, dy = p.ey - cy;
+            let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            let speed = 4 + Math.random() * 6;
+            p.evx = (dx / dist) * speed + (Math.random() - 0.5) * 2;
+            p.evy = (dy / dist) * speed + (Math.random() - 0.5) * 2;
+            p.eo = 0.8 + Math.random() * 0.2;
+        }
+    }
+
+    function destroy() {
+        if (animId) cancelAnimationFrame(animId);
+        animId = null;
+        exploding = false;
+        canvas.style.display = 'none';
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('resize', resize);
+    }
+
+    return { init, explode, destroy };
+})();
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -88,6 +263,10 @@ async function onReady() {
     await loadChats();
     restoreDraft();
     el.input.focus();
+    // Start particles if we're on a new/empty chat
+    if (el.chatWrapper.classList.contains('initial-state')) {
+        ParticleSphere.init();
+    }
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -343,7 +522,13 @@ function openPersonaModal() {
 function renderCurrentChat() {
     el.messages.innerHTML = `<div class="system-notice"><p>System Initialized. No sycophancy. No filler. Just optimization.</p></div>`;
     const chat = STATE.chats[STATE.currentChatId];
-    chat.messages.length <= 1 ? el.chatWrapper.classList.add('initial-state') : el.chatWrapper.classList.remove('initial-state');
+    if (chat.messages.length <= 1) {
+        el.chatWrapper.classList.add('initial-state');
+        ParticleSphere.init();
+    } else {
+        el.chatWrapper.classList.remove('initial-state');
+        ParticleSphere.destroy();
+    }
     chat.messages.forEach(m => { if (m.role !== 'system') addMessage(m.role, m.content); });
     addRegenerateButton();
     scrollToBottom();
@@ -383,6 +568,7 @@ async function sendMessage() {
     adjustTextareaHeight();
     chat.messages.push({ role: 'user', content: userContent });
     el.chatWrapper.classList.remove('initial-state');
+    ParticleSphere.explode();
     if (chat.messages.length === 2) {
         chat.title = (text || 'Chat').substring(0, 40) + (text.length > 40 ? '...' : '');
         renderSidebar();
