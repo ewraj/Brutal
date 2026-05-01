@@ -82,6 +82,8 @@ async function init() {
 async function onReady() {
     el.loginOverlay.classList.add('hidden');
     el.sendBtn.disabled = false;
+    // Start with sidebar hidden for a clean, tool-first experience
+    if (window.innerWidth > 768) el.sidebar.classList.add('collapsed');
     await loadSettings();
     await loadChats();
     restoreDraft();
@@ -415,7 +417,7 @@ async function executeGeneration({ isRegeneration = false } = {}) {
 
     try {
         const payload = chat.messages.map(m => ({ role: m.role, content: m.content }));
-        const stream = await puter.ai.chat(payload, { model: STATE.currentModel, stream: true });
+        const stream = await puter.ai.chat(payload, false, { model: STATE.currentModel, stream: true });
         let fullReply = '';
         contentEl.innerHTML = '';
         for await (const part of stream) {
@@ -688,5 +690,549 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('beforeunload', (e) => { if (STATE.isThinking) { e.preventDefault(); e.returnValue = ''; } });
+
+// ─── Workflow System ──────────────────────────────────────────────────────────
+
+// API key hook for future use (e.g., direct Gemini API instead of Puter)
+// Set STATE.apiKey to a valid key and STATE.useDirectApi to true to bypass Puter
+// STATE.apiKey = null;
+// STATE.useDirectApi = false;
+
+const WORKFLOW_PROMPTS = {
+    teardown: {
+        title: 'Tear Apart',
+        desc: 'Paste your code below. Brutal will run a full multi-pass analysis.',
+        steps: ['Scanning for bugs...', 'Checking architecture...', 'Evaluating style...', 'Generating verdict...'],
+        prompt: (code) => `You are BRUTAL, an automated code analysis engine. Perform a FULL multi-pass review of this code. Analyze for: bugs, anti-patterns, architecture flaws, readability issues, and style violations.
+
+You MUST respond with ONLY valid JSON. No markdown, no commentary, no wrapping. Just the raw JSON object.
+
+The JSON schema:
+{
+  "scores": {
+    "correctness": <0-10>,
+    "architecture": <0-10>,
+    "readability": <0-10>,
+    "style": <0-10>
+  },
+  "issues": [
+    {
+      "severity": "critical" | "high" | "medium" | "low" | "info",
+      "category": "bug" | "architecture" | "performance" | "readability" | "style" | "logic",
+      "line": "<line number or range, or 'general'>",
+      "description": "<clear, direct explanation of the issue>",
+      "fix": "<corrected code snippet, or empty string if not applicable>"
+    }
+  ],
+  "summary": "<2-3 sentence brutal overall verdict>"
+}
+
+CODE TO ANALYZE:
+\`\`\`
+${code}
+\`\`\``
+    },
+    security: {
+        title: 'Security Audit',
+        desc: 'Paste your code. Brutal will hunt for vulnerabilities and data leaks.',
+        steps: ['Scanning attack surface...', 'Checking injection vectors...', 'Analyzing data flow...', 'Compiling report...'],
+        prompt: (code) => `You are BRUTAL, an automated security analysis engine. Perform a thorough security audit of this code. Look for: injection vulnerabilities (SQL, XSS, command), authentication flaws, data exposure, insecure dependencies, race conditions, and any OWASP Top 10 issues.
+
+You MUST respond with ONLY valid JSON. No markdown, no commentary, no wrapping. Just the raw JSON object.
+
+The JSON schema:
+{
+  "scores": {
+    "overall_security": <0-10>,
+    "input_validation": <0-10>,
+    "data_protection": <0-10>,
+    "auth_authz": <0-10>
+  },
+  "issues": [
+    {
+      "severity": "critical" | "high" | "medium" | "low" | "info",
+      "category": "injection" | "auth" | "data_exposure" | "configuration" | "crypto" | "logic" | "dependency",
+      "line": "<line number or range, or 'general'>",
+      "description": "<clear explanation of the vulnerability and its impact>",
+      "fix": "<corrected code snippet, or empty string if not applicable>"
+    }
+  ],
+  "summary": "<2-3 sentence brutal security verdict>"
+}
+
+CODE TO AUDIT:
+\`\`\`
+${code}
+\`\`\``
+    },
+    optimize: {
+        title: 'Optimize',
+        desc: 'Paste your code. Brutal will find every performance bottleneck.',
+        steps: ['Profiling complexity...', 'Analyzing memory usage...', 'Checking hot paths...', 'Generating optimizations...'],
+        prompt: (code) => `You are BRUTAL, an automated performance optimization engine. Analyze this code for: time complexity issues, memory leaks, unnecessary allocations, redundant operations, cache misses, and algorithmic improvements.
+
+You MUST respond with ONLY valid JSON. No markdown, no commentary, no wrapping. Just the raw JSON object.
+
+The JSON schema:
+{
+  "scores": {
+    "time_complexity": <0-10>,
+    "memory_efficiency": <0-10>,
+    "algorithmic_quality": <0-10>,
+    "scalability": <0-10>
+  },
+  "issues": [
+    {
+      "severity": "critical" | "high" | "medium" | "low" | "info",
+      "category": "complexity" | "memory" | "redundancy" | "algorithm" | "io" | "caching",
+      "line": "<line number or range, or 'general'>",
+      "description": "<clear explanation of the bottleneck and its impact>",
+      "fix": "<optimized code snippet, or empty string if not applicable>"
+    }
+  ],
+  "summary": "<2-3 sentence brutal performance verdict>"
+}
+
+CODE TO OPTIMIZE:
+\`\`\`
+${code}
+\`\`\``
+    }
+};
+
+let activeWorkflowType = null;
+
+function openWorkflowModal(type) {
+    const wf = WORKFLOW_PROMPTS[type];
+    if (!wf) return;
+    activeWorkflowType = type;
+    const modal = document.getElementById('workflow-modal');
+    document.getElementById('workflow-modal-title').textContent = wf.title;
+    document.getElementById('workflow-modal-desc').textContent = wf.desc;
+    document.getElementById('workflow-code-input').value = '';
+    modal.classList.remove('hidden');
+    document.getElementById('workflow-code-input').focus();
+}
+
+function closeWorkflowModal() {
+    document.getElementById('workflow-modal').classList.add('hidden');
+    activeWorkflowType = null;
+}
+
+async function runWorkflow() {
+    if (!activeWorkflowType || STATE.isThinking) return;
+    const code = document.getElementById('workflow-code-input').value.trim();
+    if (!code) return;
+    const wf = WORKFLOW_PROMPTS[activeWorkflowType];
+    const workflowType = activeWorkflowType;
+
+    closeWorkflowModal();
+
+    // Start a new chat for this workflow
+    const id = Date.now().toString();
+    STATE.currentChatId = id;
+    STATE.chats[id] = {
+        id,
+        title: `${wf.title}: ${code.substring(0, 30).replace(/\n/g, ' ')}...`,
+        pinned: false,
+        messages: [{ role: 'system', content: getActivePersona() }],
+        isWorkflow: true,
+        workflowType,
+        workflowCode: code
+    };
+    saveChats();
+    renderSidebar();
+
+    // Show the user's code as a message
+    const displayCode = `[${wf.title} Workflow]\n\`\`\`\n${code}\n\`\`\``;
+    addMessage('user', displayCode);
+    STATE.chats[id].messages.push({ role: 'user', content: displayCode });
+    el.chatWrapper.classList.remove('initial-state');
+
+    // Show loading state
+    STATE.isThinking = true;
+    el.sendBtn.disabled = true;
+    el.sendBtn.classList.add('hidden');
+    el.stopBtn.classList.remove('hidden');
+    STATE.cancelStream = false;
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message brutal';
+    loadingDiv.innerHTML = `
+        <span class="label">BRUTAL</span>
+        <div class="content">
+            <div class="workflow-loading">
+                <div class="workflow-loading-spinner"></div>
+                <div class="workflow-loading-text">Running ${wf.title} pipeline...</div>
+                <div class="workflow-loading-step" id="wf-step">${wf.steps[0]}</div>
+            </div>
+        </div>`;
+    el.messages.appendChild(loadingDiv);
+    scrollToBottom();
+
+    // Animate through steps
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+        stepIndex = (stepIndex + 1) % wf.steps.length;
+        const stepEl = document.getElementById('wf-step');
+        if (stepEl) stepEl.textContent = wf.steps[stepIndex];
+    }, 2000);
+
+    try {
+        const prompt = wf.prompt(code);
+        const payload = [
+            { role: 'system', content: 'You are a code analysis engine. You MUST respond with ONLY valid JSON. No markdown fences, no explanatory text, no ``` wrappers. Output the raw JSON object directly.' },
+            { role: 'user', content: prompt }
+        ];
+
+        let fullReply = '';
+
+        // Use non-streaming for workflows (we need the complete JSON)
+        const resp = await puter.ai.chat(payload, false, { model: STATE.currentModel });
+        fullReply = typeof resp === 'string' ? resp : (resp?.message?.content ?? resp?.text ?? JSON.stringify(resp));
+
+        clearInterval(stepInterval);
+
+        if (STATE.cancelStream) {
+            loadingDiv.remove();
+            return;
+        }
+
+        // Parse the JSON response
+        const parsed = parseWorkflowResponse(fullReply);
+        loadingDiv.remove();
+
+        if (parsed) {
+            const resultDiv = renderWorkflowResults(parsed, workflowType);
+            el.messages.appendChild(resultDiv);
+            STATE.chats[id].messages.push({ role: 'assistant', content: fullReply });
+            STATE.chats[id].workflowData = parsed;
+        } else {
+            // Fallback: render as regular markdown if JSON parsing fails
+            const fallbackDiv = addMessage('brutal', fullReply);
+            STATE.chats[id].messages.push({ role: 'assistant', content: fullReply });
+        }
+
+        saveChats();
+
+    } catch (err) {
+        clearInterval(stepInterval);
+        loadingDiv.remove();
+        addMessage('brutal', `[WORKFLOW ERROR: ${err.message}]`);
+    } finally {
+        STATE.isThinking = false;
+        el.sendBtn.disabled = false;
+        el.sendBtn.classList.remove('hidden');
+        el.stopBtn.classList.add('hidden');
+        STATE.cancelStream = false;
+        addRegenerateButton();
+        scrollToBottom();
+    }
+}
+
+function parseWorkflowResponse(raw) {
+    try {
+        // Strip markdown fences if the model added them anyway
+        let cleaned = raw.trim();
+        if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+        else if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+        if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+        cleaned = cleaned.trim();
+
+        const data = JSON.parse(cleaned);
+        if (data.scores && data.issues) return data;
+        return null;
+    } catch (e) {
+        // Try to extract JSON from mixed text
+        const jsonMatch = raw.match(/\{[\s\S]*"scores"[\s\S]*"issues"[\s\S]*\}/);
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (e2) {}
+        }
+        console.error('Failed to parse workflow response:', e);
+        return null;
+    }
+}
+
+function renderWorkflowResults(data, workflowType) {
+    const wf = WORKFLOW_PROMPTS[workflowType];
+    const div = document.createElement('div');
+    div.className = 'message brutal';
+
+    // Build scores HTML
+    let scoresHtml = '';
+    if (data.scores) {
+        const entries = Object.entries(data.scores);
+        scoresHtml = `<div class="workflow-scores">${entries.map(([key, val]) => {
+            const scoreClass = val >= 7 ? 'score-high' : val >= 4 ? 'score-mid' : 'score-low';
+            const label = key.replace(/_/g, ' ');
+            return `<div class="workflow-score ${scoreClass}">
+                <span class="workflow-score-value">${val}</span>
+                <span class="workflow-score-label">${label}</span>
+            </div>`;
+        }).join('')}</div>`;
+    }
+
+    // Build issues HTML
+    let issuesHtml = '';
+    if (data.issues && data.issues.length > 0) {
+        issuesHtml = `<div class="workflow-issues">${data.issues.map((issue, i) => {
+            const sev = (issue.severity || 'info').toLowerCase();
+            const fixId = `wf-fix-${Date.now()}-${i}`;
+            const fixBlock = issue.fix ? `
+                <div class="issue-fix">
+                    <div class="issue-fix-header">
+                        <span class="issue-fix-label">Suggested Fix</span>
+                        <button class="issue-fix-copy" onclick="copyWorkflowFix('${fixId}')">Copy</button>
+                    </div>
+                    <pre><code id="${fixId}">${escapeHtml(issue.fix)}</code></pre>
+                </div>` : '';
+            return `
+                <div class="workflow-issue severity-${sev}">
+                    <div class="issue-header">
+                        <span class="issue-severity">${sev}</span>
+                        ${issue.line ? `<span class="issue-line">Line ${issue.line}</span>` : ''}
+                        ${issue.category ? `<span class="issue-category">${issue.category}</span>` : ''}
+                    </div>
+                    <div class="issue-description">${escapeHtml(issue.description)}</div>
+                    ${fixBlock}
+                </div>`;
+        }).join('')}</div>`;
+    } else {
+        issuesHtml = `<div class="workflow-issue severity-info"><div class="issue-description">No issues found. The code passed all checks.</div></div>`;
+    }
+
+    // Build summary
+    const summaryHtml = data.summary
+        ? `<div class="workflow-summary">${marked.parse(data.summary)}</div>`
+        : '';
+
+    div.innerHTML = `
+        <span class="label">BRUTAL</span>
+        <div class="content">
+            <div class="workflow-results">
+                <div class="workflow-results-header">
+                    <span class="workflow-results-title">${wf.title} — Results</span>
+                    ${scoresHtml}
+                </div>
+                ${issuesHtml}
+                ${summaryHtml}
+                <div style="margin-top:1rem; display:flex; justify-content:center;">
+                    <button class="modal-btn primary annotate-btn" onclick="openAnnotator()">View in Annotator</button>
+                </div>
+            </div>
+        </div>
+        <div class="token-count"></div>`;
+
+    // Highlight code in fix blocks
+    div.querySelectorAll('pre code').forEach(hljs.highlightElement);
+
+    return div;
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function copyWorkflowFix(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+        const btn = el.closest('.issue-fix').querySelector('.issue-fix-copy');
+        if (btn) {
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+        }
+    });
+}
+
+// ─── Code Annotator ───────────────────────────────────────────────────────────
+
+function openAnnotator() {
+    const chat = STATE.chats[STATE.currentChatId];
+    if (!chat || !chat.workflowData || !chat.workflowCode) return;
+    const wf = WORKFLOW_PROMPTS[chat.workflowType];
+    const code = chat.workflowCode;
+    const issues = chat.workflowData.issues || [];
+    const lines = code.split('\n');
+
+    // Build a map of line number -> issues
+    const lineIssueMap = {};
+    issues.forEach((issue, idx) => {
+        const lineStr = String(issue.line || 'general').trim();
+        // Handle ranges like "3-5" and single lines like "3"
+        const rangeMatch = lineStr.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+        if (rangeMatch) {
+            const start = parseInt(rangeMatch[1]);
+            const end = parseInt(rangeMatch[2]);
+            for (let i = start; i <= end; i++) {
+                if (!lineIssueMap[i]) lineIssueMap[i] = [];
+                lineIssueMap[i].push(idx);
+            }
+        } else {
+            const num = parseInt(lineStr);
+            if (!isNaN(num)) {
+                if (!lineIssueMap[num]) lineIssueMap[num] = [];
+                lineIssueMap[num].push(idx);
+            }
+        }
+    });
+
+    // Set title
+    document.getElementById('annotator-title').textContent = `${wf?.title || 'Analysis'} — Annotations`;
+
+    // Stats
+    const critCount = issues.filter(i => i.severity === 'critical' || i.severity === 'high').length;
+    const statsEl = document.getElementById('annotator-stats');
+    statsEl.innerHTML = `
+        <span class="annotator-stat"><span class="annotator-stat-count">${issues.length}</span> issues</span>
+        ${critCount > 0 ? `<span class="annotator-stat" style="border-color:#ef4444"><span class="annotator-stat-count" style="color:#ef4444">${critCount}</span> critical/high</span>` : ''}
+    `;
+
+    // Render code lines
+    const codeEl = document.getElementById('annotator-code');
+    codeEl.innerHTML = lines.map((line, i) => {
+        const lineNum = i + 1;
+        const issueIdxs = lineIssueMap[lineNum];
+        const hasIssue = issueIdxs && issueIdxs.length > 0;
+        // Take the highest severity for this line
+        let sevClass = '';
+        if (hasIssue) {
+            const sevs = issueIdxs.map(idx => issues[idx]?.severity || 'info');
+            const sevOrder = ['critical', 'high', 'medium', 'low', 'info'];
+            const highest = sevOrder.find(s => sevs.includes(s)) || 'info';
+            sevClass = `severity-${highest}`;
+        }
+        return `<div class="annotator-line ${hasIssue ? 'has-issue ' + sevClass : ''}" data-line="${lineNum}" ${hasIssue ? `data-issues="${issueIdxs.join(',')}"` : ''}>
+            <span class="annotator-linenum">${lineNum}</span>
+            <span class="annotator-line-content">${escapeHtml(line) || ' '}</span>
+        </div>`;
+    }).join('');
+
+    // Render annotation notes
+    const notesEl = document.getElementById('annotator-notes');
+    if (issues.length === 0) {
+        notesEl.innerHTML = '<div class="annotator-empty">No issues to annotate.</div>';
+    } else {
+        notesEl.innerHTML = issues.map((issue, i) => {
+            const sev = (issue.severity || 'info').toLowerCase();
+            const fixId = `ann-fix-${Date.now()}-${i}`;
+            const fixBlock = issue.fix ? `
+                <div class="annotator-note-fix">
+                    <div class="annotator-note-fix-bar">
+                        <span class="annotator-note-fix-label">Fix</span>
+                        <button class="annotator-note-fix-copy" data-fix-id="${fixId}">Copy</button>
+                    </div>
+                    <pre><code id="${fixId}">${escapeHtml(issue.fix)}</code></pre>
+                </div>` : '';
+            return `
+                <div class="annotator-note severity-${sev}" data-issue-idx="${i}" data-line="${issue.line || ''}">
+                    <div class="annotator-note-header">
+                        <span class="annotator-note-severity">${sev}</span>
+                        ${issue.line ? `<span class="annotator-note-line">Line ${issue.line}</span>` : ''}
+                        ${issue.category ? `<span class="annotator-note-category">${issue.category}</span>` : ''}
+                    </div>
+                    <div class="annotator-note-desc">${escapeHtml(issue.description)}</div>
+                    ${fixBlock}
+                </div>`;
+        }).join('');
+    }
+
+    // Highlight code blocks
+    notesEl.querySelectorAll('pre code').forEach(hljs.highlightElement);
+
+    // Wire up click interactions
+    // Click a code line -> highlight that line + scroll to its annotation
+    codeEl.querySelectorAll('.annotator-line[data-issues]').forEach(lineEl => {
+        lineEl.addEventListener('click', () => {
+            const issueIdxs = lineEl.dataset.issues.split(',').map(Number);
+            highlightAnnotation(issueIdxs[0], parseInt(lineEl.dataset.line));
+        });
+    });
+
+    // Click an annotation -> highlight it + scroll to the code line
+    notesEl.querySelectorAll('.annotator-note[data-line]').forEach(noteEl => {
+        noteEl.addEventListener('click', (e) => {
+            if (e.target.closest('.annotator-note-fix-copy')) return; // don't trigger on copy btn
+            const lineStr = noteEl.dataset.line;
+            const lineNum = parseInt(lineStr);
+            const issueIdx = parseInt(noteEl.dataset.issueIdx);
+            highlightAnnotation(issueIdx, isNaN(lineNum) ? null : lineNum);
+        });
+    });
+
+    // Wire up copy buttons
+    notesEl.querySelectorAll('.annotator-note-fix-copy').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const codeEl = document.getElementById(btn.dataset.fixId);
+            if (!codeEl) return;
+            navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 2000);
+            });
+        });
+    });
+
+    // Show annotator
+    document.getElementById('annotator-view').classList.remove('hidden');
+}
+
+function highlightAnnotation(issueIdx, lineNum) {
+    // Clear previous highlights
+    document.querySelectorAll('.annotator-line.highlighted').forEach(el => el.classList.remove('highlighted'));
+    document.querySelectorAll('.annotator-note.highlighted').forEach(el => el.classList.remove('highlighted'));
+
+    // Highlight the code line
+    if (lineNum) {
+        const lineEl = document.querySelector(`.annotator-line[data-line="${lineNum}"]`);
+        if (lineEl) {
+            lineEl.classList.add('highlighted');
+            lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    // Highlight the annotation
+    const noteEl = document.querySelector(`.annotator-note[data-issue-idx="${issueIdx}"]`);
+    if (noteEl) {
+        noteEl.classList.add('highlighted');
+        noteEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function closeAnnotator() {
+    document.getElementById('annotator-view').classList.add('hidden');
+}
+
+// ─── Workflow Event Listeners ─────────────────────────────────────────────────
+
+document.querySelectorAll('.workflow-card').forEach(card => {
+    card.addEventListener('click', () => openWorkflowModal(card.dataset.workflow));
+});
+
+document.getElementById('workflow-cancel').addEventListener('click', closeWorkflowModal);
+document.getElementById('workflow-run').addEventListener('click', runWorkflow);
+
+document.getElementById('workflow-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'workflow-modal') closeWorkflowModal();
+});
+
+document.getElementById('annotator-back').addEventListener('click', closeAnnotator);
+
+// Allow tab key in code textarea
+document.getElementById('workflow-code-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const ta = e.target;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        ta.value = ta.value.substring(0, start) + '    ' + ta.value.substring(end);
+        ta.selectionStart = ta.selectionEnd = start + 4;
+    }
+    if (e.key === 'Escape') closeWorkflowModal();
+});
 
 init();
