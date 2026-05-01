@@ -101,25 +101,15 @@ const ParticleSphere = (() => {
     function generate() {
         particles.length = 0;
         for (let i = 0; i < N; i++) {
-            // Restore Fibonacci lattice for the perfect even flow
             let phi = Math.acos(1 - 2 * (i + 0.5) / N);
             let theta = 2 * Math.PI * i / goldenRatio;
-            
-            // Scatter the boundaries: points sit on slightly different radius layers
-            // ranging from 75% to 125% of the base radius
-            let rFactor = 0.75 + Math.random() * 0.5;
-
-            let x = Math.cos(theta) * Math.sin(phi) * rFactor;
-            let y = Math.sin(theta) * Math.sin(phi) * rFactor;
-            let z = Math.cos(phi) * rFactor;
-            
-            // Dash direction perfectly follows the sphere surface
+            let x = Math.cos(theta) * Math.sin(phi);
+            let y = Math.sin(theta) * Math.sin(phi);
+            let z = Math.cos(phi);
             let theta2 = theta + 0.03;
-            
-            let x2 = Math.cos(theta2) * Math.sin(phi) * rFactor;
-            let y2 = Math.sin(theta2) * Math.sin(phi) * rFactor;
-            let z2 = Math.cos(phi) * rFactor;
-            
+            let x2 = Math.cos(theta2) * Math.sin(phi);
+            let y2 = Math.sin(theta2) * Math.sin(phi);
+            let z2 = Math.cos(phi);
             particles.push({
                 bx: x, by: y, bz: z,
                 bx2: x2, by2: y2, bz2: z2,
