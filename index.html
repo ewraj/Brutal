@@ -44,7 +44,7 @@
                     </button>
                     <div class="logo">
                         <span class="brutal-text">BRUTAL</span>
-                        <span class="version">v2.0</span>
+                        <span class="version">v2</span>
                     </div>
                 </div>
                 <div class="header-right">
@@ -60,10 +60,41 @@
                 <main id="chat-container">
                     <div id="messages">
                         <div class="system-notice">
-                            <p>System Initialized. No sycophancy. No filler. Just optimization.</p>
+                            <p>// ready</p>
                         </div>
                     </div>
                 </main>
+
+                <!-- Workflow Panel (visible in initial state) -->
+                <div id="workflow-panel" class="workflow-panel">
+                    <div class="workflow-header">
+                        <h2 class="workflow-title">Workflows</h2>
+                        <p class="workflow-subtitle">Skip the prompting. Pick a pipeline.</p>
+                    </div>
+                    <div class="workflow-grid">
+                        <button class="workflow-card" data-workflow="teardown" id="wf-teardown">
+                            <div class="workflow-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                            </div>
+                            <span class="workflow-label">Tear Apart</span>
+                            <span class="workflow-desc">Full multi-pass critique: bugs, style, architecture</span>
+                        </button>
+                        <button class="workflow-card" data-workflow="security" id="wf-security">
+                            <div class="workflow-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            </div>
+                            <span class="workflow-label">Security Audit</span>
+                            <span class="workflow-desc">Hunt vulnerabilities, injections, and data leaks</span>
+                        </button>
+                        <button class="workflow-card" data-workflow="optimize" id="wf-optimize">
+                            <div class="workflow-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            </div>
+                            <span class="workflow-label">Optimize</span>
+                            <span class="workflow-desc">Performance bottlenecks, memory, and complexity</span>
+                        </button>
+                    </div>
+                </div>
 
                 <footer>
                     <div class="input-wrapper">
@@ -73,7 +104,7 @@
                         <input type="file" id="file-input" accept="image/*,.txt,.js,.py,.ts,.md,.json,.css,.html,.c,.cpp,.java,.go,.rs" style="display:none">
                         <div class="input-column">
                             <div id="attachment-preview" class="hidden"></div>
-                            <textarea id="user-input" placeholder="Pitch your project or ask a technical question..." rows="1"></textarea>
+                            <textarea id="user-input" placeholder="> enter command or describe your problem..." rows="1"></textarea>
                         </div>
                         <button type="button" id="send-btn" disabled>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -101,7 +132,39 @@
         </div>
 
         <input type="file" id="import-file-input" accept=".md" style="display:none">
-    </div>
+
+        <!-- Workflow Code Input Modal -->
+        <div id="workflow-modal" class="modal-overlay hidden">
+            <div class="modal-card workflow-modal-card">
+                <h3 id="workflow-modal-title">Tear Apart</h3>
+                <p id="workflow-modal-desc" class="workflow-modal-desc">Paste your code below. Brutal will run a multi-pass analysis.</p>
+                <textarea id="workflow-code-input" class="modal-input workflow-code-area" rows="12" placeholder="Paste code here..."></textarea>
+                <div class="modal-btn-row">
+                    <button class="modal-btn" id="workflow-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="workflow-run">Run Analysis</button>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Code Annotator View -->
+        <div id="annotator-view" class="annotator-view hidden">
+            <div class="annotator-toolbar">
+                <button id="annotator-back" class="annotator-back-btn" title="Back to chat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span>Back to Chat</span>
+                </button>
+                <span class="annotator-title" id="annotator-title">Tear Apart — Annotations</span>
+                <div class="annotator-stats" id="annotator-stats"></div>
+            </div>
+            <div class="annotator-split">
+                <div class="annotator-code-pane">
+                    <div class="annotator-code" id="annotator-code"></div>
+                </div>
+                <div class="annotator-gutter"></div>
+                <div class="annotator-notes-pane" id="annotator-notes"></div>
+            </div>
+        </div>
     <script src="app.js"></script>
 </body>
 </html>
