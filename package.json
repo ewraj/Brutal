@@ -1,5 +1,29 @@
 {
   "dependencies": {
+    "chokidar": "^5.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "playwright": "^1.59.1"
-  }
+  },
+  "name": "brutal",
+  "version": "1.0.0",
+  "description": "BRUTAL is a zero-sycophancy AI technical advisor designed for ruthless efficiency and radical candor. This project has evolved into a robust web application that provides a premium, dark-mode interface for interacting with the Brutal AI persona.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "agent": "node brutal-agent.js",
+    "agent:workspace": "node brutal-agent.js --root ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ewraj/Brutal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ewraj/Brutal/issues"
+  },
+  "homepage": "https://github.com/ewraj/Brutal#readme"
 }

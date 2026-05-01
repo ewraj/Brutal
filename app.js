@@ -34,7 +34,16 @@ const STATE = {
     searchQuery: '',
     currentModeKey: 'brutal',
     customPersona: '',
-    pendingAttachment: null
+    pendingAttachment: null,
+    // Feature: Project Context (RAG)
+    contextFiles: [],        // [{name, content}]
+    contextInjecting: false, // true = inject on next send
+    // Feature: Local Agent
+    agentConnected: false,
+    agentRoot: '',
+    agentPollInterval: null,
+    // Feature: Code Sandbox
+    sandboxCode: ''
 };
 
 const el = {
@@ -59,6 +68,33 @@ const el = {
     importFileInput: document.getElementById('import-file-input'),
     personaBtn: document.getElementById('persona-btn'),
     personaLabel: document.getElementById('persona-label'),
+    // Project Context
+    contextDropZone: document.getElementById('context-drop-zone'),
+    contextFileInput: document.getElementById('context-file-input'),
+    contextDirInput: document.getElementById('context-dir-input'),
+    contextFileList: document.getElementById('context-file-list'),
+    contextActions: document.getElementById('context-actions'),
+    contextInjectBtn: document.getElementById('context-inject-btn'),
+    contextClearBtn: document.getElementById('context-clear-btn'),
+    contextBadge: document.getElementById('context-badge'),
+    contextBadgeCount: document.getElementById('context-badge-count'),
+    // Agent
+    agentDot: document.getElementById('agent-dot'),
+    agentStatusText: document.getElementById('agent-status-text'),
+    agentInfo: document.getElementById('agent-info'),
+    agentRootDisplay: document.getElementById('agent-root-display'),
+    agentConnectBtn: document.getElementById('agent-connect-btn'),
+    agentConfirmModal: document.getElementById('agent-confirm-modal'),
+    agentConfirmFile: document.getElementById('agent-confirm-file'),
+    agentConfirmOk: document.getElementById('agent-confirm-ok'),
+    agentConfirmCancel: document.getElementById('agent-confirm-cancel'),
+    // Sandbox
+    sandboxView: document.getElementById('sandbox-view'),
+    sandboxCode: document.getElementById('sandbox-code'),
+    sandboxOutput: document.getElementById('sandbox-output'),
+    sandboxRunBtn: document.getElementById('sandbox-run-btn'),
+    sandboxClearBtn: document.getElementById('sandbox-clear-btn'),
+    sandboxClose: document.getElementById('sandbox-close'),
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -381,6 +417,21 @@ async function sendMessage() {
         userContent = text;
     }
 
+    // ── Inject Project Context ────────────────────────────────────────────────
+    if (STATE.contextInjecting && STATE.contextFiles.length > 0) {
+        const contextHeader = `[PROJECT CONTEXT — ${STATE.contextFiles.length} file(s)]\n\n` +
+            STATE.contextFiles.map(f => `// ${f.name}\n\`\`\`\n${f.content}\n\`\`\``).join('\n\n');
+        const separator = typeof userContent === 'string'
+            ? `${contextHeader}\n\n---\n\n${userContent}`
+            : userContent; // for multipart image content, just attach context as text
+        userContent = separator;
+        displayText = `📁 Context: ${STATE.contextFiles.length} file(s) injected\n\n${text}`;
+        // Turn off injecting after one shot
+        STATE.contextInjecting = false;
+        updateContextUI();
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     addMessage('user', displayText);
     el.input.value = '';
     localStorage.removeItem('brutal_draft');
@@ -464,6 +515,8 @@ async function executeGeneration({ isRegeneration = false } = {}) {
 function injectCopyButtons(container) {
     container.querySelectorAll('pre').forEach(pre => {
         if (pre.querySelector('.copy-btn')) return;
+
+        // Copy button
         const btn = document.createElement('button');
         btn.className = 'copy-btn';
         btn.textContent = 'Copy';
@@ -476,6 +529,22 @@ function injectCopyButtons(container) {
         };
         pre.style.position = 'relative';
         pre.appendChild(btn);
+
+        // Run button — only for JS-ish blocks
+        const codeEl = pre.querySelector('code');
+        const lang = [...(codeEl?.classList || [])].find(c => c.startsWith('language-'));
+        const isRunnable = lang && (lang.includes('javascript') || lang.includes('js'));
+        if (isRunnable) {
+            const runBtn = document.createElement('button');
+            runBtn.className = 'run-btn';
+            runBtn.innerHTML = `<svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Run`;
+            runBtn.title = 'Run in Code Sandbox';
+            runBtn.onclick = () => {
+                const code = codeEl?.textContent || '';
+                openSandbox(code);
+            };
+            pre.appendChild(runBtn);
+        }
     });
 }
 
@@ -814,6 +883,39 @@ The JSON schema:
 
 CODE TO OPTIMIZE:
 \`\`\`
+${code}
+\`\`\``
+    },
+    diff: {
+        title: 'Diff Review',
+        desc: 'Paste a git diff below. Brutal will review every changed line.',
+        steps: ['Parsing diff...', 'Reviewing changes...', 'Checking logic...', 'Writing verdict...'],
+        prompt: (code) => `You are BRUTAL, an automated PR review engine. You are given a git diff. Review every changed line for: bugs introduced, logic regressions, style violations, missing error handling, test coverage gaps, and security implications.
+
+You MUST respond with ONLY valid JSON. No markdown, no commentary, no wrapping. Just the raw JSON object.
+
+The JSON schema:
+{
+  "scores": {
+    "correctness": <0-10>,
+    "risk": <0-10>,
+    "test_coverage": <0-10>,
+    "style": <0-10>
+  },
+  "issues": [
+    {
+      "severity": "critical" | "high" | "medium" | "low" | "info",
+      "category": "bug" | "regression" | "security" | "style" | "missing_test" | "logic" | "performance",
+      "line": "<line number, range, or file:line, or 'general'>",
+      "description": "<clear explanation of the problem with the diff change>",
+      "fix": "<corrected code snippet, or empty string>"
+    }
+  ],
+  "summary": "<2-3 sentence brutal PR verdict. Would you merge this? Why or why not?>"
+}
+
+GIT DIFF TO REVIEW:
+\`\`\`diff
 ${code}
 \`\`\``
     }
@@ -1155,73 +1257,7 @@ function openAnnotator() {
                         ${issue.category ? `<span class="annotator-note-category">${issue.category}</span>` : ''}
                     </div>
                     <div class="annotator-note-desc">${escapeHtml(issue.description)}</div>
-                    ${fixBlock}
-                </div>`;
-        }).join('');
-    }
-
-    // Highlight code blocks
-    notesEl.querySelectorAll('pre code').forEach(hljs.highlightElement);
-
-    // Wire up click interactions
-    // Click a code line -> highlight that line + scroll to its annotation
-    codeEl.querySelectorAll('.annotator-line[data-issues]').forEach(lineEl => {
-        lineEl.addEventListener('click', () => {
-            const issueIdxs = lineEl.dataset.issues.split(',').map(Number);
-            highlightAnnotation(issueIdxs[0], parseInt(lineEl.dataset.line));
-        });
-    });
-
-    // Click an annotation -> highlight it + scroll to the code line
-    notesEl.querySelectorAll('.annotator-note[data-line]').forEach(noteEl => {
-        noteEl.addEventListener('click', (e) => {
-            if (e.target.closest('.annotator-note-fix-copy')) return; // don't trigger on copy btn
-            const lineStr = noteEl.dataset.line;
-            const lineNum = parseInt(lineStr);
-            const issueIdx = parseInt(noteEl.dataset.issueIdx);
-            highlightAnnotation(issueIdx, isNaN(lineNum) ? null : lineNum);
-        });
-    });
-
-    // Wire up copy buttons
-    notesEl.querySelectorAll('.annotator-note-fix-copy').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const codeEl = document.getElementById(btn.dataset.fixId);
-            if (!codeEl) return;
-            navigator.clipboard.writeText(codeEl.textContent).then(() => {
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = 'Copy', 2000);
-            });
-        });
-    });
-
-    // Show annotator
-    document.getElementById('annotator-view').classList.remove('hidden');
-}
-
-function highlightAnnotation(issueIdx, lineNum) {
-    // Clear previous highlights
-    document.querySelectorAll('.annotator-line.highlighted').forEach(el => el.classList.remove('highlighted'));
-    document.querySelectorAll('.annotator-note.highlighted').forEach(el => el.classList.remove('highlighted'));
-
-    // Highlight the code line
-    if (lineNum) {
-        const lineEl = document.querySelector(`.annotator-line[data-line="${lineNum}"]`);
-        if (lineEl) {
-            lineEl.classList.add('highlighted');
-            lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
-
-    // Highlight the annotation
-    const noteEl = document.querySelector(`.annotator-note[data-issue-idx="${issueIdx}"]`);
-    if (noteEl) {
-        noteEl.classList.add('highlighted');
-        noteEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
-
+           
 function closeAnnotator() {
     document.getElementById('annotator-view').classList.add('hidden');
 }
@@ -1253,5 +1289,317 @@ document.getElementById('workflow-code-input').addEventListener('keydown', (e) =
     }
     if (e.key === 'Escape') closeWorkflowModal();
 });
+
+// ─── Feature 2: Project Context (Client-Side RAG) ────────────────────────────
+
+const ALLOWED_CONTEXT_EXTS = new Set([
+    '.js','.ts','.tsx','.jsx','.mjs','.py','.go','.rs','.c','.cpp','.h',
+    '.java','.kt','.swift','.rb','.php','.html','.css','.scss',
+    '.json','.yaml','.yml','.toml','.md','.txt','.sh','.sql','.graphql'
+]);
+
+function addContextFiles(files) {
+    const toRead = [...files].filter(f => {
+        const ext = '.' + f.name.split('.').pop().toLowerCase();
+        return ALLOWED_CONTEXT_EXTS.has(ext) && f.size < 256 * 1024;
+    });
+    let done = 0;
+    if (!toRead.length) return;
+    for (const file of toRead) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            // Deduplicate by name
+            if (!STATE.contextFiles.find(cf => cf.name === file.name)) {
+                STATE.contextFiles.push({ name: file.name, content: e.target.result });
+            }
+            done++;
+            if (done === toRead.length) updateContextUI();
+        };
+        reader.readAsText(file);
+    }
+}
+
+function updateContextUI() {
+    const files = STATE.contextFiles;
+    el.contextFileList.innerHTML = files.map((f, i) => `
+        <div class="context-file-item">
+            <span title="${f.name}">${f.name}</span>
+            <button onclick="removeContextFile(${i})" title="Remove">×</button>
+        </div>`).join('');
+
+    if (files.length > 0) {
+        el.contextActions.classList.remove('hidden');
+        el.contextBadge.classList.remove('hidden');
+        el.contextBadgeCount.textContent = files.length;
+    } else {
+        el.contextActions.classList.add('hidden');
+        el.contextBadge.classList.add('hidden');
+        STATE.contextInjecting = false;
+    }
+
+    if (STATE.contextInjecting) {
+        el.contextInjectBtn.classList.add('active');
+        el.contextInjectBtn.textContent = '✓ Will inject';
+    } else {
+        el.contextInjectBtn.classList.remove('active');
+        el.contextInjectBtn.textContent = 'Inject into next message';
+    }
+}
+
+window.removeContextFile = function(idx) {
+    STATE.contextFiles.splice(idx, 1);
+    updateContextUI();
+};
+
+el.contextDropZone.addEventListener('click', () => el.contextDirInput.click());
+el.contextDropZone.addEventListener('dragover', e => { e.preventDefault(); el.contextDropZone.classList.add('drag-over'); });
+el.contextDropZone.addEventListener('dragleave', () => el.contextDropZone.classList.remove('drag-over'));
+el.contextDropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    el.contextDropZone.classList.remove('drag-over');
+    addContextFiles(e.dataTransfer.files);
+});
+el.contextFileInput.addEventListener('change', () => addContextFiles(el.contextFileInput.files));
+el.contextDirInput.addEventListener('change', () => addContextFiles(el.contextDirInput.files));
+
+el.contextInjectBtn.addEventListener('click', () => {
+    if (STATE.contextFiles.length === 0) return;
+    STATE.contextInjecting = !STATE.contextInjecting;
+    updateContextUI();
+});
+
+el.contextClearBtn.addEventListener('click', () => {
+    STATE.contextFiles = [];
+    STATE.contextInjecting = false;
+    updateContextUI();
+});
+
+// ─── Feature 1: Local System Agent ───────────────────────────────────────────
+
+const AGENT_URL = 'http://localhost:7432';
+
+async function pingAgent() {
+    try {
+        const r = await fetch(`${AGENT_URL}/ping`, { signal: AbortSignal.timeout(1500) });
+        if (!r.ok) return null;
+        return await r.json();
+    } catch { return null; }
+}
+
+async function connectAgent() {
+    el.agentDot.className = 'agent-dot connecting';
+    el.agentStatusText.textContent = 'Connecting...';
+    const info = await pingAgent();
+    if (info) {
+        setAgentConnected(info);
+    } else {
+        setAgentDisconnected();
+    }
+}
+
+function setAgentConnected(info) {
+    STATE.agentConnected = true;
+    STATE.agentRoot = info.root || '';
+    el.agentDot.className = 'agent-dot connected';
+    el.agentStatusText.textContent = 'Connected';
+    el.agentInfo.textContent = STATE.agentRoot;
+    el.agentInfo.classList.remove('hidden');
+    el.agentConnectBtn.textContent = 'Disconnect';
+    el.agentConnectBtn.classList.add('connected-state');
+    // Poll every 5s
+    if (STATE.agentPollInterval) clearInterval(STATE.agentPollInterval);
+    STATE.agentPollInterval = setInterval(async () => {
+        const ok = await pingAgent();
+        if (!ok && STATE.agentConnected) setAgentDisconnected();
+    }, 5000);
+}
+
+function setAgentDisconnected() {
+    STATE.agentConnected = false;
+    STATE.agentRoot = '';
+    el.agentDot.className = 'agent-dot disconnected';
+    el.agentStatusText.textContent = 'Not connected';
+    el.agentInfo.classList.add('hidden');
+    el.agentConnectBtn.textContent = 'Connect Agent';
+    el.agentConnectBtn.classList.remove('connected-state');
+    if (STATE.agentPollInterval) { clearInterval(STATE.agentPollInterval); STATE.agentPollInterval = null; }
+}
+
+el.agentConnectBtn.addEventListener('click', () => {
+    if (STATE.agentConnected) { setAgentDisconnected(); }
+    else { connectAgent(); }
+});
+
+// Agent: apply a fix to a local file
+let pendingAgentWrite = null;
+
+window.agentApplyFix = function(file, content) {
+    if (!STATE.agentConnected) {
+        alert('Local Agent is not connected. Start brutal-agent.js first.');
+        return;
+    }
+    pendingAgentWrite = { file, content };
+    el.agentConfirmFile.textContent = file;
+    el.agentConfirmModal.classList.remove('hidden');
+};
+
+el.agentConfirmCancel.addEventListener('click', () => {
+    pendingAgentWrite = null;
+    el.agentConfirmModal.classList.add('hidden');
+});
+
+el.agentConfirmOk.addEventListener('click', async () => {
+    if (!pendingAgentWrite) return;
+    el.agentConfirmModal.classList.add('hidden');
+    try {
+        const r = await fetch(`${AGENT_URL}/write`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pendingAgentWrite)
+        });
+        const res = await r.json();
+        if (res.ok) {
+            // Show a transient toast
+            showToast(`✓ Written: ${pendingAgentWrite.file}`, 'success');
+        } else {
+            showToast(`✗ Agent error: ${res.error}`, 'error');
+        }
+    } catch (e) {
+        showToast(`✗ Could not reach agent: ${e.message}`, 'error');
+    }
+    pendingAgentWrite = null;
+});
+
+el.agentConfirmModal.addEventListener('click', e => {
+    if (e.target === el.agentConfirmModal) {
+        pendingAgentWrite = null;
+        el.agentConfirmModal.classList.add('hidden');
+    }
+});
+
+// Agent: load workspace tree and show picker
+window.agentBrowse = async function() {
+    if (!STATE.agentConnected) return;
+    try {
+        const r = await fetch(`${AGENT_URL}/tree`);
+        const { files } = await r.json();
+        // For now, inject file list into context automatically
+        const fileContents = await fetch(`${AGENT_URL}/read-many`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: files.slice(0, 20).map(f => f.path) })
+        });
+        const { files: loaded } = await fileContents.json();
+        STATE.contextFiles = loaded.map(f => ({ name: f.file, content: f.content }));
+        updateContextUI();
+        showToast(`✓ Loaded ${loaded.length} files from workspace`, 'success');
+    } catch (e) {
+        showToast(`✗ Agent error: ${e.message}`, 'error');
+    }
+};
+
+// Toast notifications
+function showToast(msg, type = 'info') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+        background: var(--bg-elevated); border: 1px solid var(--border-color);
+        color: ${type === 'success' ? '#4ade80' : type === 'error' ? '#ef4444' : 'var(--text-primary)'};
+        padding: 0.6rem 1.25rem; border-radius: 8px; font-size: 0.8rem;
+        font-family: var(--font-mono); z-index: 9999;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        animation: fadeIn 0.2s ease-out;
+    `;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// ─── Feature 4: Code Sandbox ─────────────────────────────────────────────────
+
+function openSandbox(code) {
+    code = code || '';
+    el.sandboxCode.value = code;
+    el.sandboxOutput.innerHTML = '<div class="sandbox-log system">// Ready. Click Run or press Ctrl+Enter.</div>';
+    el.sandboxView.classList.remove('hidden');
+    el.sandboxCode.focus();
+}
+
+function closeSandbox() {
+    el.sandboxView.classList.add('hidden');
+}
+
+function runSandbox() {
+    var code = el.sandboxCode.value;
+    el.sandboxOutput.innerHTML = '';
+
+    var makeLogger = function(type) {
+        return function() {
+            var args = Array.prototype.slice.call(arguments);
+            var text = args.map(function(a) {
+                try { return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }
+                catch(e) { return String(a); }
+            }).join(' ');
+            var div = document.createElement('div');
+            div.className = 'sandbox-log ' + type;
+            div.textContent = text;
+            el.sandboxOutput.appendChild(div);
+            el.sandboxOutput.scrollTop = el.sandboxOutput.scrollHeight;
+        };
+    };
+
+    var sandboxConsole = {
+        log: makeLogger(''),
+        error: makeLogger('error'),
+        warn: makeLogger('warn'),
+        info: makeLogger('info')
+    };
+
+    // Run in iframe for isolation
+    var iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    try {
+        var iframeWin = iframe.contentWindow;
+        iframeWin.console = sandboxConsole;
+        var startTime = performance.now();
+        var result = iframeWin.eval(code);
+        var elapsed = (performance.now() - startTime).toFixed(1);
+        if (result !== undefined) {
+            makeLogger('success')(result);
+        }
+        var timeDiv = document.createElement('div');
+        timeDiv.className = 'sandbox-log system';
+        timeDiv.textContent = '// Completed in ' + elapsed + 'ms';
+        el.sandboxOutput.appendChild(timeDiv);
+    } catch(err) {
+        makeLogger('error')(err.toString());
+    } finally {
+        document.body.removeChild(iframe);
+    }
+}
+
+el.sandboxClose.addEventListener('click', closeSandbox);
+el.sandboxRunBtn.addEventListener('click', runSandbox);
+el.sandboxClearBtn.addEventListener('click', function() {
+    el.sandboxOutput.innerHTML = '<div class="sandbox-log system">// Output cleared.</div>';
+});
+el.sandboxCode.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runSandbox(); }
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        var s = e.target.selectionStart, end = e.target.selectionEnd;
+        e.target.value = e.target.value.substring(0, s) + '    ' + e.target.value.substring(end);
+        e.target.selectionStart = e.target.selectionEnd = s + 4;
+    }
+    if (e.key === 'Escape') closeSandbox();
+});
+
+// Auto-ping agent on startup
+setTimeout(async function() {
+    var info = await pingAgent();
+    if (info) setAgentConnected(info);
+}, 1500);
 
 init();

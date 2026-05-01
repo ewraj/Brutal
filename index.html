@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>BRUTAL — Optimal AI</title>
+    <meta name="description" content="BRUTAL: A zero-sycophancy AI technical advisor with code workflows, project context, and local file editing.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,6 +29,37 @@
                 <input type="text" id="search-input" placeholder="Search chats..." autocomplete="off">
             </div>
             <div id="chat-list"></div>
+
+            <!-- Project Context Panel -->
+            <div class="sidebar-section-label">Project Context</div>
+            <div id="project-context-panel">
+                <div id="context-drop-zone">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    <span id="context-drop-label">Drop folder or files</span>
+                    <input type="file" id="context-file-input" multiple accept=".js,.ts,.tsx,.jsx,.py,.go,.rs,.c,.cpp,.h,.java,.kt,.swift,.rb,.php,.html,.css,.scss,.json,.yaml,.yml,.toml,.md,.txt,.sh,.sql,.graphql" style="display:none">
+                    <input type="file" id="context-dir-input" webkitdirectory multiple style="display:none">
+                </div>
+                <div id="context-file-list"></div>
+                <div id="context-actions" class="hidden">
+                    <button id="context-inject-btn">Inject into next message</button>
+                    <button id="context-clear-btn">Clear</button>
+                </div>
+            </div>
+
+            <!-- Agent Status -->
+            <div class="sidebar-section-label">Local Agent</div>
+            <div id="agent-status-panel">
+                <div id="agent-status-indicator">
+                    <span id="agent-dot" class="agent-dot disconnected"></span>
+                    <span id="agent-status-text">Not connected</span>
+                </div>
+                <div id="agent-info" class="hidden">
+                    <span id="agent-root-display"></span>
+                </div>
+                <button id="agent-connect-btn" class="agent-btn">Connect Agent</button>
+                <div class="agent-hint">Run: <code>node brutal-agent.js</code></div>
+            </div>
+
             <div class="sidebar-footer">
                 <button id="persona-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -48,7 +80,10 @@
                     </div>
                 </div>
                 <div class="header-right">
-
+                    <div id="context-badge" class="hidden" title="Project context active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        <span id="context-badge-count"></span> files
+                    </div>
                     <button id="export-btn" title="Export to Obsidian Markdown (Ctrl+E)">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                         <span>Export .md</span>
@@ -91,6 +126,13 @@
                             </div>
                             <span class="workflow-label">Optimize</span>
                             <span class="workflow-desc">Performance bottlenecks, memory, and complexity</span>
+                        </button>
+                        <button class="workflow-card" data-workflow="diff" id="wf-diff">
+                            <div class="workflow-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 5 5 12"></polyline></svg>
+                            </div>
+                            <span class="workflow-label">Diff Review</span>
+                            <span class="workflow-desc">Paste a git diff for automated PR feedback</span>
                         </button>
                     </div>
                 </div>
@@ -164,6 +206,50 @@
                 <div class="annotator-notes-pane" id="annotator-notes"></div>
             </div>
         </div>
+
+        <!-- Code Sandbox View -->
+        <div id="sandbox-view" class="sandbox-view hidden">
+            <div class="sandbox-toolbar">
+                <button id="sandbox-close" class="annotator-back-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span>Back to Chat</span>
+                </button>
+                <span class="annotator-title">Code Sandbox</span>
+                <div style="display:flex; gap:0.5rem; margin-left:auto; align-items:center;">
+                    <button id="sandbox-run-btn" class="sandbox-run-btn">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Run
+                    </button>
+                    <button id="sandbox-clear-btn" class="sandbox-clear-btn">Clear Output</button>
+                </div>
+            </div>
+            <div class="sandbox-split">
+                <div class="sandbox-editor-pane">
+                    <div class="sandbox-pane-label">Editor</div>
+                    <textarea id="sandbox-code" class="sandbox-textarea" spellcheck="false"></textarea>
+                </div>
+                <div class="sandbox-gutter"></div>
+                <div class="sandbox-output-pane">
+                    <div class="sandbox-pane-label">Output</div>
+                    <div id="sandbox-output"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent Write-File Confirm Modal -->
+        <div id="agent-confirm-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h3 style="margin-bottom:0.75rem">Apply Fix to File</h3>
+                <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:1rem;">The following file will be modified on your local machine:</p>
+                <div id="agent-confirm-file" style="font-family:var(--font-mono); font-size:0.8rem; background:var(--bg-input); padding:0.6rem 0.75rem; border-radius:8px; margin-bottom:1.25rem; word-break:break-all; color:var(--brutal-red);"></div>
+                <div class="modal-btn-row">
+                    <button class="modal-btn" id="agent-confirm-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="agent-confirm-ok">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

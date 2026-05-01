@@ -1493,3 +1493,416 @@ kbd {
     .annotator-title { font-size: 0.7rem; }
     .annotator-stats { display: none; }
 }
+
+/* ── Sidebar Section Labels ────────────────────────────────────────────────── */
+
+.sidebar-section-label {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+    opacity: 0.4;
+    padding: 0.5rem 0.5rem 0.25rem;
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+
+/* ── Project Context Panel ────────────────────────────────────────────────── */
+
+#project-context-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+#context-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-input);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+}
+
+#context-drop-zone:hover,
+#context-drop-zone.drag-over {
+    border-color: var(--brutal-red);
+    background: var(--accent-glow);
+}
+
+#context-drop-zone svg { color: var(--text-secondary); opacity: 0.5; }
+#context-drop-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+#context-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.context-file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-input);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+.context-file-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.context-file-item button {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 0.1rem;
+    line-height: 1;
+    flex-shrink: 0;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+.context-file-item button:hover { opacity: 1; color: var(--brutal-red); }
+
+#context-actions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+#context-inject-btn {
+    flex: 1;
+    background: var(--accent-glow);
+    color: var(--brutal-red);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-weight: 500;
+}
+#context-inject-btn:hover { background: rgba(220, 38, 38, 0.15); }
+#context-inject-btn.active {
+    background: var(--brutal-red);
+    color: white;
+}
+
+#context-clear-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+#context-clear-btn:hover { background: var(--border-color); }
+
+/* Context badge in header */
+#context-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--accent-glow);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    color: var(--brutal-red);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* ── Agent Status Panel ───────────────────────────────────────────────────── */
+
+#agent-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+#agent-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+}
+
+.agent-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.agent-dot.disconnected { background: var(--text-secondary); opacity: 0.4; }
+.agent-dot.connected {
+    background: #4ade80;
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+    animation: pulse 2.5s ease-in-out infinite;
+}
+.agent-dot.connecting {
+    background: #fbbf24;
+    animation: spin 0.8s linear infinite;
+}
+
+#agent-status-text {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+#agent-info {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    opacity: 0.6;
+    padding: 0 0.5rem;
+    word-break: break-all;
+}
+
+.agent-btn {
+    width: 100%;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.45rem 0.75rem;
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.agent-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.agent-btn.connected-state {
+    border-color: rgba(74, 222, 128, 0.3);
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.05);
+}
+
+.agent-hint {
+    font-size: 0.62rem;
+    color: var(--text-secondary);
+    opacity: 0.4;
+    padding: 0 0.5rem;
+}
+.agent-hint code {
+    font-family: var(--font-mono);
+    background: var(--bg-card);
+    padding: 0.05rem 0.25rem;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+}
+
+/* Agent apply-fix button inline */
+.agent-apply-btn {
+    background: rgba(74, 222, 128, 0.08);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.agent-apply-btn:hover {
+    background: rgba(74, 222, 128, 0.15);
+    border-color: #4ade80;
+}
+.agent-apply-btn svg { width: 11px; height: 11px; }
+
+/* ── Diff Workflow Card (4th card — full-width row) ───────────────────────── */
+
+.workflow-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    max-width: 700px;
+    width: 100%;
+}
+
+/* Override: when there are 4+ cards, switch to 2x2 */
+.workflow-grid:has(.workflow-card:nth-child(4)) {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 480px;
+}
+
+/* ── Code Sandbox View ────────────────────────────────────────────────────── */
+
+.sandbox-view {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-main);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.sandbox-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-card);
+    flex-shrink: 0;
+}
+
+.sandbox-split {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.sandbox-editor-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #000;
+}
+
+.sandbox-pane-label {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    padding: 0.35rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.sandbox-textarea {
+    flex: 1;
+    width: 100%;
+    background: transparent;
+    color: #e6e6e6;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.7;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 1rem;
+    tab-size: 4;
+    caret-color: var(--brutal-red);
+    overflow-y: auto;
+}
+
+.sandbox-gutter {
+    width: 1px;
+    background: var(--border-color);
+    flex-shrink: 0;
+}
+
+.sandbox-output-pane {
+    width: 45%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--bg-card);
+}
+
+#sandbox-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #e6e6e6;
+}
+
+.sandbox-log { color: #e6e6e6; margin-bottom: 0.25rem; white-space: pre-wrap; word-break: break-all; }
+.sandbox-log.error { color: #ef4444; }
+.sandbox-log.warn { color: #fbbf24; }
+.sandbox-log.info { color: #38bdf8; }
+.sandbox-log.success { color: #4ade80; }
+.sandbox-log.system { color: var(--text-secondary); opacity: 0.5; font-style: italic; }
+
+.sandbox-run-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--brutal-red);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.sandbox-run-btn:hover { background: #b91c1c; box-shadow: 0 0 16px rgba(220, 38, 38, 0.3); }
+
+.sandbox-clear-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.sandbox-clear-btn:hover { background: var(--border-color); }
+
+/* Run button on code blocks */
+.run-btn {
+    background: transparent;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: #4ade80;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: absolute;
+    top: 0.5rem;
+    right: 3.5rem;
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.run-btn svg { width: 9px; height: 9px; fill: currentColor; }
+pre:hover .run-btn { opacity: 1; }
+.run-btn:hover { background: rgba(74, 222, 128, 0.1); }
+
+@media (max-width: 768px) {
+    .sandbox-split { flex-direction: column; }
+    .sandbox-editor-pane { flex: none; height: 45vh; }
+    .sandbox-gutter { width: 100%; height: 1px; }
+    .sandbox-output-pane { width: 100%; flex: 1; }
+    .workflow-grid:has(.workflow-card:nth-child(4)) { grid-template-columns: 1fr; max-width: 100%; }
+}
