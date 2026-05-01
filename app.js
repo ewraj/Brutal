@@ -101,26 +101,24 @@ const ParticleSphere = (() => {
     function generate() {
         particles.length = 0;
         for (let i = 0; i < N; i++) {
-            // Random spherical coordinates instead of perfect Fibonacci lattice
-            let phi = Math.acos(2 * Math.random() - 1);
-            let theta = Math.random() * Math.PI * 2;
+            // Restore Fibonacci lattice for the perfect even flow
+            let phi = Math.acos(1 - 2 * (i + 0.5) / N);
+            let theta = 2 * Math.PI * i / goldenRatio;
             
-            // Randomize radius heavily so it's a scattered volume, not a thin shell
-            // Bias slightly towards the middle, but scatter widely
-            let rFactor = 0.3 + Math.random() * 1.2; 
+            // Scatter the boundaries: points sit on slightly different radius layers
+            // ranging from 75% to 125% of the base radius
+            let rFactor = 0.75 + Math.random() * 0.5;
 
             let x = Math.cos(theta) * Math.sin(phi) * rFactor;
             let y = Math.sin(theta) * Math.sin(phi) * rFactor;
             let z = Math.cos(phi) * rFactor;
             
-            // Random dash length and slightly wobbly direction
-            let dashLen = 0.01 + Math.random() * 0.04;
-            let theta2 = theta + dashLen;
-            let phi2 = phi + (Math.random() - 0.5) * 0.03;
+            // Dash direction perfectly follows the sphere surface
+            let theta2 = theta + 0.03;
             
-            let x2 = Math.cos(theta2) * Math.sin(phi2) * rFactor;
-            let y2 = Math.sin(theta2) * Math.sin(phi2) * rFactor;
-            let z2 = Math.cos(phi2) * rFactor;
+            let x2 = Math.cos(theta2) * Math.sin(phi) * rFactor;
+            let y2 = Math.sin(theta2) * Math.sin(phi) * rFactor;
+            let z2 = Math.cos(phi) * rFactor;
             
             particles.push({
                 bx: x, by: y, bz: z,
