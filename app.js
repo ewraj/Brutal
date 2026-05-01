@@ -86,8 +86,9 @@ const ParticleSphere = (() => {
         const rect = canvas.getBoundingClientRect();
         mouseX = ((e.clientX - rect.left) - width / 2) / (width / 2);
         mouseY = ((e.clientY - rect.top) - height / 2) / (height / 2);
-        targetRotY = mouseX * 0.8;
-        targetRotX = -mouseY * 0.8;
+        // Inverted signs so it rotates TOWARDS the mouse instead of away
+        targetRotY = -mouseX * 0.8;
+        targetRotX = mouseY * 0.8;
     }
 
     function resize() {
