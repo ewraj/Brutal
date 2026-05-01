@@ -322,14 +322,17 @@ header {
     gap: 0;
     padding: 0;
     width: 100%;
+    max-width: 850px;
+    margin: 0 auto;
 }
 
 .system-notice {
     font-family: var(--font-mono);
     font-size: 0.72rem;
-    padding: 0.6rem 1.25rem;
+    padding: 2rem 1.25rem;
     opacity: 0.4;
     color: var(--text-secondary);
+    text-align: center;
 }
 
 .message {
@@ -448,12 +451,17 @@ pre:hover .copy-btn { opacity: 1; }
 /* ── Terminal Prompt ──────────────────────────────────────────────────────── */
 
 footer {
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 1rem 1rem;
     background: transparent;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .input-wrapper {
+    width: 100%;
+    max-width: 850px;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -571,9 +579,11 @@ textarea::placeholder { color: var(--text-secondary); opacity: 0.5; }
 /* Shortcuts */
 .shortcuts-hint {
     display: flex;
-    justify-content: flex-start;
-    gap: 1rem;
-    padding: 0.25rem 1rem 0.4rem;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 0.5rem 1rem 0;
+    width: 100%;
+    max-width: 850px;
 }
 .shortcuts-hint span { font-size: 0.6rem; color: var(--text-secondary); opacity: 0.3; }
 kbd {
