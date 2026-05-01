@@ -349,7 +349,7 @@ function renderCurrentChat() {
         el.chatWrapper.classList.remove('initial-state');
     }
     chat.messages.forEach(m => { if (m.role !== 'system') addMessage(m.role, m.content); });
-    addRegenerateButton();
+    addMessageActions();
     scrollToBottom();
 }
 
@@ -421,7 +421,7 @@ async function executeGeneration({ isRegeneration = false } = {}) {
 
     try {
         const payload = chat.messages.map(m => ({ role: m.role, content: m.content }));
-        const stream = await puter.ai.chat(payload, false, { model: STATE.currentModel, stream: true });
+        const stream = await puter.ai.chat(payload, { model: STATE.currentModel, stream: true });
         let fullReply = '';
         contentEl.innerHTML = '';
         for await (const part of stream) {
@@ -454,7 +454,7 @@ async function executeGeneration({ isRegeneration = false } = {}) {
         el.sendBtn.classList.remove('hidden');
         el.stopBtn.classList.add('hidden');
         STATE.cancelStream = false;
-        addRegenerateButton();
+        addMessageActions();
         scrollToBottom();
     }
 }
@@ -481,19 +481,34 @@ function injectCopyButtons(container) {
 
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
-function addRegenerateButton() {
-    document.querySelectorAll('.regenerate-btn-wrapper').forEach(e => e.remove());
+function addMessageActions() {
+    document.querySelectorAll('.message-actions-wrapper').forEach(e => e.remove());
     const chat = STATE.chats[STATE.currentChatId];
     if (!chat || STATE.isThinking) return;
     const lastMsg = chat.messages[chat.messages.length - 1];
     const lastBubble = Array.from(el.messages.children).findLast(e => e.classList.contains('message'));
     if (lastMsg?.role === 'assistant' && lastBubble) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'regenerate-btn-wrapper';
+        wrapper.className = 'message-actions-wrapper';
+        
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'action-btn copy-response-btn';
+        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(lastMsg.content).then(() => {
+                copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>Copied</span>`;
+                setTimeout(() => {
+                    copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
+                }, 2000);
+            });
+        };
+        
         const btn = document.createElement('button');
-        btn.className = 'regenerate-btn';
+        btn.className = 'action-btn regenerate-btn';
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg><span>Regenerate</span>`;
         btn.onclick = regenerateLastResponse;
+        
+        wrapper.appendChild(copyBtn);
         wrapper.appendChild(btn);
         lastBubble.appendChild(wrapper);
     }
@@ -929,7 +944,7 @@ async function runWorkflow() {
         el.sendBtn.classList.remove('hidden');
         el.stopBtn.classList.add('hidden');
         STATE.cancelStream = false;
-        addRegenerateButton();
+        addMessageActions();
         scrollToBottom();
     }
 }
