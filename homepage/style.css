@@ -93,6 +93,8 @@ nav {
     display: flex;
     gap: 24px;
     list-style: none;
+    margin-right: auto;
+    margin-left: 40px;
 }
 
 .nav-links a {
