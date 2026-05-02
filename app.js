@@ -559,7 +559,7 @@ function addMessageActions() {
     if (lastMsg?.role === 'assistant' && lastBubble) {
         const wrapper = document.createElement('div');
         wrapper.className = 'message-actions-wrapper';
-        
+
         const copyBtn = document.createElement('button');
         copyBtn.className = 'action-btn copy-response-btn';
         copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span>Copy</span>`;
@@ -571,12 +571,12 @@ function addMessageActions() {
                 }, 2000);
             });
         };
-        
+
         const btn = document.createElement('button');
         btn.className = 'action-btn regenerate-btn';
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg><span>Regenerate</span>`;
         btn.onclick = regenerateLastResponse;
-        
+
         wrapper.appendChild(copyBtn);
         wrapper.appendChild(btn);
         lastBubble.appendChild(wrapper);
@@ -1069,7 +1069,7 @@ function parseWorkflowResponse(raw) {
         if (jsonMatch) {
             try {
                 return JSON.parse(jsonMatch[0]);
-            } catch (e2) {}
+            } catch (e2) { }
         }
         console.error('Failed to parse workflow response:', e);
         return null;
@@ -1257,7 +1257,14 @@ function openAnnotator() {
                         ${issue.category ? `<span class="annotator-note-category">${issue.category}</span>` : ''}
                     </div>
                     <div class="annotator-note-desc">${escapeHtml(issue.description)}</div>
-           
+                    ${fixBlock}
+                </div>`;
+        }).join('');
+    }
+
+    document.getElementById('annotator-view').classList.remove('hidden');
+}
+
 function closeAnnotator() {
     document.getElementById('annotator-view').classList.add('hidden');
 }
@@ -1380,7 +1387,7 @@ const AGENT_URL = 'http://localhost:7432';
 
 async function pingAgent() {
     try {
-        const r = await fetch(`${AGENT_URL}/ping`, { signal: AbortSignal.timeout(1500) });
+        const r = await fetch(`${ AGENT_URL }/ping`, { signal: AbortSignal.timeout(1500) });
         if (!r.ok) return null;
         return await r.json();
     } catch { return null; }
@@ -1433,7 +1440,7 @@ el.agentConnectBtn.addEventListener('click', () => {
 // Agent: apply a fix to a local file
 let pendingAgentWrite = null;
 
-window.agentApplyFix = function(file, content) {
+window.agentApplyFix = function (file, content) {
     if (!STATE.agentConnected) {
         alert('Local Agent is not connected. Start brutal-agent.js first.');
         return;
@@ -1478,7 +1485,7 @@ el.agentConfirmModal.addEventListener('click', e => {
 });
 
 // Agent: load workspace tree and show picker
-window.agentBrowse = async function() {
+window.agentBrowse = async function () {
     if (!STATE.agentConnected) return;
     try {
         const r = await fetch(`${AGENT_URL}/tree`);
@@ -1533,12 +1540,12 @@ function runSandbox() {
     var code = el.sandboxCode.value;
     el.sandboxOutput.innerHTML = '';
 
-    var makeLogger = function(type) {
-        return function() {
+    var makeLogger = function (type) {
+        return function () {
             var args = Array.prototype.slice.call(arguments);
-            var text = args.map(function(a) {
+            var text = args.map(function (a) {
                 try { return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }
-                catch(e) { return String(a); }
+                catch (e) { return String(a); }
             }).join(' ');
             var div = document.createElement('div');
             div.className = 'sandbox-log ' + type;
@@ -1573,7 +1580,7 @@ function runSandbox() {
         timeDiv.className = 'sandbox-log system';
         timeDiv.textContent = '// Completed in ' + elapsed + 'ms';
         el.sandboxOutput.appendChild(timeDiv);
-    } catch(err) {
+    } catch (err) {
         makeLogger('error')(err.toString());
     } finally {
         document.body.removeChild(iframe);
@@ -1582,10 +1589,10 @@ function runSandbox() {
 
 el.sandboxClose.addEventListener('click', closeSandbox);
 el.sandboxRunBtn.addEventListener('click', runSandbox);
-el.sandboxClearBtn.addEventListener('click', function() {
+el.sandboxClearBtn.addEventListener('click', function () {
     el.sandboxOutput.innerHTML = '<div class="sandbox-log system">// Output cleared.</div>';
 });
-el.sandboxCode.addEventListener('keydown', function(e) {
+el.sandboxCode.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runSandbox(); }
     if (e.key === 'Tab') {
         e.preventDefault();
@@ -1597,7 +1604,7 @@ el.sandboxCode.addEventListener('keydown', function(e) {
 });
 
 // Auto-ping agent on startup
-setTimeout(async function() {
+setTimeout(async function () {
     var info = await pingAgent();
     if (info) setAgentConnected(info);
 }, 1500);
