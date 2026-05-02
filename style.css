@@ -250,7 +250,8 @@ header {
 #sidebar-toggle:hover { background: var(--bg-input); color: var(--text-primary); }
 #sidebar-toggle svg { width: 20px; height: 20px; }
 
-.logo { display: flex; align-items: center; gap: 0.5rem; }
+.logo { display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s; }
+.logo:hover { opacity: 0.8; cursor: pointer; }
 .brutal-text {
     font-family: var(--font-mono);
     font-weight: 700;
@@ -344,18 +345,32 @@ header {
 
 @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 850px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0.75rem 1.25rem 0;
+}
+
 .message .label {
     font-family: var(--font-mono);
     font-size: 0.6rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    padding: 0.75rem 1.25rem 0;
     opacity: 0.5;
-    max-width: 850px;
-    margin: 0 auto;
-    width: 100%;
 }
+
+.timestamp {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    color: var(--text-secondary);
+    opacity: 0.3;
+}
+
 .message.user .label { color: var(--text-secondary); }
 .message.brutal .label { color: var(--brutal-red); }
 

@@ -45,6 +45,12 @@ h1, h2, h3 {
     font-weight: 800;
     letter-spacing: -1px;
     color: var(--accent);
+    transition: opacity 0.2s;
+}
+
+.logo:hover {
+    opacity: 0.8;
+    cursor: pointer;
 }
 
 .small-n {

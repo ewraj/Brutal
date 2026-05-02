@@ -384,7 +384,7 @@ function renderCurrentChat() {
     } else {
         el.chatWrapper.classList.remove('initial-state');
     }
-    chat.messages.forEach(m => { if (m.role !== 'system') addMessage(m.role, m.content); });
+    chat.messages.forEach(m => { if (m.role !== 'system') addMessage(m.role, m.content, m.timestamp); });
     addMessageActions();
     scrollToBottom();
 }
@@ -432,11 +432,12 @@ async function sendMessage() {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    addMessage('user', displayText);
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    addMessage('user', displayText, timestamp);
     el.input.value = '';
     localStorage.removeItem('brutal_draft');
     adjustTextareaHeight();
-    chat.messages.push({ role: 'user', content: userContent });
+    chat.messages.push({ role: 'user', content: userContent, timestamp });
     el.chatWrapper.classList.remove('initial-state');
     if (chat.messages.length === 2) {
         chat.title = (text || 'Chat').substring(0, 40) + (text.length > 40 ? '...' : '');
@@ -466,7 +467,8 @@ async function executeGeneration({ isRegeneration = false } = {}) {
     el.stopBtn.classList.remove('hidden');
     document.querySelectorAll('.regenerate-btn-wrapper').forEach(e => e.remove());
 
-    const brutalMsgEl = addMessage('brutal', '...');
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const brutalMsgEl = addMessage('brutal', '...', timestamp);
     const contentEl = brutalMsgEl.querySelector('.content');
     const tokenEl = brutalMsgEl.querySelector('.token-count');
 
@@ -487,7 +489,7 @@ async function executeGeneration({ isRegeneration = false } = {}) {
         injectCopyButtons(contentEl);
         const tokens = Math.ceil(fullReply.length / 4);
         if (tokenEl) tokenEl.textContent = `~${tokens.toLocaleString()} tokens`;
-        chat.messages.push({ role: 'assistant', content: fullReply });
+        chat.messages.push({ role: 'assistant', content: fullReply, timestamp });
         saveChats();
     } catch (err) {
         contentEl.innerHTML = `<span style="color:var(--brutal-red)">[ERROR: ${err.message}]</span>`;
@@ -583,12 +585,16 @@ function addMessageActions() {
     }
 }
 
-function addMessage(role, text) {
+function addMessage(role, text, timestamp) {
     const div = document.createElement('div');
     div.className = `message ${role}`;
     const isUser = role === 'user';
+    const displayTime = timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     div.innerHTML = `
-        <span class="label">${isUser ? 'YOU' : 'BRUTAL'}</span>
+        <div class="message-header">
+            <span class="label">${isUser ? 'YOU' : 'BRUTAL'}</span>
+            <span class="timestamp">${displayTime}</span>
+        </div>
         <div class="content"></div>
         ${!isUser ? '<div class="token-count"></div>' : ''}`;
     const contentDiv = div.querySelector('.content');
@@ -980,7 +986,10 @@ async function runWorkflow() {
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message brutal';
     loadingDiv.innerHTML = `
-        <span class="label">BRUTAL</span>
+        <div class="message-header">
+            <span class="label">BRUTAL</span>
+            <span class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
         <div class="content">
             <div class="workflow-loading">
                 <div class="workflow-loading-spinner"></div>
