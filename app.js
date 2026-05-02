@@ -62,6 +62,7 @@ const el = {
     exportBtn: document.getElementById('export-btn'),
     searchInput: document.getElementById('search-input'),
     attachBtn: document.getElementById('attach-btn'),
+    voiceBtn: document.getElementById('voice-btn'),
     fileInput: document.getElementById('file-input'),
     attachmentPreview: document.getElementById('attachment-preview'),
     importBtn: document.getElementById('import-btn'),
@@ -97,6 +98,70 @@ const el = {
     sandboxClose: document.getElementById('sandbox-close'),
 };
 
+// ─── Voice Search ─────────────────────────────────────────────────────────────
+
+function initVoice() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        el.voiceBtn.style.display = 'none';
+        return;
+    }
+
+    STATE.recognition = new SpeechRecognition();
+    STATE.recognition.continuous = false;
+    STATE.recognition.interimResults = true;
+    STATE.recognition.lang = 'en-US';
+
+    STATE.recognition.onstart = () => {
+        STATE.isListening = true;
+        el.voiceBtn.classList.add('listening');
+        el.input.placeholder = 'Listening...';
+    };
+
+    STATE.recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+            .map(result => result[0])
+            .map(result => result.transcript)
+            .join('');
+
+        el.input.value = transcript;
+        adjustTextareaHeight();
+        
+        if (event.results[0].isFinal) {
+            // Optional: automatically send if it's a short command?
+            // For now, just leave it in the input for the user to confirm.
+        }
+    };
+
+    STATE.recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        stopVoice();
+    };
+
+    STATE.recognition.onend = () => {
+        stopVoice();
+    };
+}
+
+function toggleVoice() {
+    if (STATE.isListening) {
+        STATE.recognition.stop();
+    } else {
+        if (!STATE.recognition) initVoice();
+        try {
+            STATE.recognition.start();
+        } catch (e) {
+            console.error('Failed to start recognition:', e);
+        }
+    }
+}
+
+function stopVoice() {
+    STATE.isListening = false;
+    el.voiceBtn.classList.remove('listening');
+    el.input.placeholder = 'Describe your problem or paste code...';
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -123,6 +188,7 @@ async function onReady() {
     await loadSettings();
     await loadChats();
     restoreDraft();
+    initVoice();
     el.input.focus();
 }
 
@@ -756,6 +822,7 @@ el.searchInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { el
 
 
 el.attachBtn.addEventListener('click', () => el.fileInput.click());
+el.voiceBtn.addEventListener('click', toggleVoice);
 el.fileInput.addEventListener('change', () => { if (el.fileInput.files[0]) handleFileSelect(el.fileInput.files[0]); });
 
 // Drag-and-drop on input
