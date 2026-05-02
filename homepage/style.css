@@ -47,6 +47,11 @@ h1, h2, h3 {
     color: var(--accent);
 }
 
+.small-n {
+    font-size: 0.7em;
+    vertical-align: baseline;
+}
+
 .bg-mesh {
     position: fixed;
     top: 0;
@@ -73,9 +78,8 @@ h1, h2, h3 {
 /* Navigation */
 nav {
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
-    gap: 40px;
     padding: 15px 5%;
     position: fixed;
     top: 0;
